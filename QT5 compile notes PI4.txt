@@ -1,0 +1,22 @@
+
+for 1920 x1080 set the following in the Raspberrry Pi 
+sudo nano /boot/firmware/config.txt
+
+# uncomment to force a specific HDMI mode (this will force VGA)
+hdmi_group=1
+hdmi_mode=16
+
+
+
+execute the following update:
+sudo apt-get install libQt5Pas*
+
+
+update LCLNet.pas at the bottom with:
+{$ifdef LCLQT5}
+  {$i lclgtkeventer.inc} // identical code ;)
+{$endif}
+                   
+
+outstanding problem is xor lines
+

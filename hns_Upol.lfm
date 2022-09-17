@@ -1,0 +1,24 @@
+object Polarscope: TPolarscope
+  Cursor = crCross
+  Left = 1151
+  Height = 540
+  Top = 145
+  Width = 560
+  BorderStyle = bsDialog
+  Caption = 'Polar aligment scope view'
+  Color = clNavy
+  Font.Color = clWindowText
+  Font.Height = -10
+  Font.Name = 'MS Sans Serif'
+  OnClose = FormClose
+  OnCreate = FormCreate
+  OnPaint = FormPaint
+  Position = poOwnerFormCenter
+  LCLVersion = '2.0.12.0'
+  object Polarscopetimer: TTimer
+    Interval = 60000
+    OnTimer = FormPaint
+    Left = 264
+    Top = 208
+  end
+end
