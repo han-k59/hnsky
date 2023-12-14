@@ -113,32 +113,39 @@ end;
 procedure Moonfornextdays;
 var
       time,dayscount,moonint, skyint,mode1,dummy1,nauticalR,nauticalG,nauticalB,civil_twilightR,civil_twilightG,civil_twilightB,astroR,astroG,astroB, err, text_height7,y7,i :integer;
-      azimuth2,altitude2,  altitude3, julian_day,wtime3, midday_julian    : double;
+      azimuth2,altitude2,  altitude3, julian_day,wtime3    : double;
       rec : trect;
 
       distl:integer;{distance from left}
       distt:integer;{distance from top}
-      distt24,stepV, stepH :integer;
+      distt24,stepV, stepH,utc_correction :integer;
+      time_zone_info : string;
 begin
+  distl:=darkform.bevel_main.left+4;{distance left}
+  distt:=darkform.bevel_day.top+1;
+  distt24:=darkform.bevel_hour.top+1;
 
-   distl:=darkform.bevel_main.left+4;{distance left}
-   distt:=darkform.bevel_day.top+1;
-   distt24:=darkform.bevel_hour.top+1;
-
-   stepV:=round(darkform.bevel_day.height/31.5);{about 15}
-   stepH:=round(darkform.bevel_main.width/(50));{about 9}
+  stepV:=round(darkform.bevel_day.height/31.5);{about 15}
+  stepH:=round(darkform.bevel_main.width/(50));{about 9}
 
 
-  darkform.caption:=dark_skies_title+'  '+copy(JdToDate_2(julian_UT+day_offset-0.001{get correct date at 24 hours}+(timezone+daylight_saving)/24),1,10);
+  utc_correction:=trunc(longitude/15+timezone); // for systems running UTC as system clock but a at least 2 hours away for UTC time zone
+  if abs(utc_correction)<2 then
+    utc_correction:=0
+  else
+  begin
+    if timezone=0 then darkform.bevel_hour.hint:='UTC';//overrule local time hint
+    if utc_correction>0 then utc_correction:=utc_correction-24; //take the morning since it is longer then the evening
+  end;
 
   darkform.canvas.brush.color:=clBtnFace;{mod 2006 may}
-  textout_center_aligned(darkform.canvas,trunc(1*steph)+distl,distt24,'18');
-  textout_center_aligned(darkform.canvas,trunc(9*steph)+distl,distt24,'20');
-  textout_center_aligned(darkform.canvas,trunc(17*steph)+distl,distt24,'22');
-  textout_center_aligned(darkform.canvas,trunc(25*steph)+distl,distt24,'24');
-  textout_center_aligned(darkform.canvas,trunc(33*steph)+distl,distt24,'02');
-  textout_center_aligned(darkform.canvas,trunc(41*steph)+distl,distt24,'04');
-  textout_center_aligned(darkform.canvas,trunc(49*steph)+distl,distt24,'06');
+  textout_center_aligned(darkform.canvas,trunc(1*steph)+distl,distt24,inttostr(round(fnmodulo(18+utc_correction,24))));
+  textout_center_aligned(darkform.canvas,trunc(9*steph)+distl,distt24,inttostr(round(fnmodulo(20+utc_correction,24))));
+  textout_center_aligned(darkform.canvas,trunc(17*steph)+distl,distt24,inttostr(round(fnmodulo(22+utc_correction,24))));
+  textout_center_aligned(darkform.canvas,trunc(25*steph)+distl,distt24,inttostr(round(fnmodulo(24+utc_correction,24))));
+  textout_center_aligned(darkform.canvas,trunc(33*steph)+distl,distt24,inttostr(round(fnmodulo(02+utc_correction,24))));
+  textout_center_aligned(darkform.canvas,trunc(41*steph)+distl,distt24,inttostr(round(fnmodulo(04+utc_correction,24))));
+  textout_center_aligned(darkform.canvas,trunc(49*steph)+distl,distt24,inttostr(round(fnmodulo(06+utc_correction,24))));
 
   darkform.Canvas.Pen.Color:=clblack;
 
@@ -147,7 +154,6 @@ begin
     darkform.canvas.moveTo(trunc(-1+(1+i*4)*steph)+distl,darkform.bevel_hour.top+darkform.bevel_hour.height-6);
     darkform.canvas.LineTo(trunc(-1+(1+i*4)*steph)+distl,darkform.bevel_hour.top+darkform.bevel_hour.height);
   end;
-
 
   dayscount:=0;
 
@@ -170,27 +176,38 @@ begin
 
   text_height7:=round(darkform.canvas.Textheight('F'));
 
-  repeat
+  repeat //do days
     darkform.canvas.brush.color:=clBtnFace;
-    midday_julian:=julian_calc(year2,month2,day2,12 -(timezone+daylight_saving),0,0)+dayscount+day_offset;
-    y7:= distt+round(dayscount*stepV);
-    darkform.canvas.FillRect(Rect(darkform.bevel_day.left+1,
-                                  y7,
-                                  darkform.bevel_day.left+darkform.bevel_day.width-2,
-                                  y7+ text_height7) );{wipe first, line by line for flicker free scrolling}
-
-    darkform.canvas.textout(darkform.bevel_day.left+round(darkform.canvas.TextWidth(friday+'   '))+3,y7,JdToDate_3(midday_julian));
-    if round(7.00*frac((midday_julian)/7))=4 then
-       darkform.canvas.textout(darkform.bevel_day.left+4,y7,friday);
-
 
     for time:=0 to 49  do    {do from 17:45 till 06:15 hours}
     begin
-      julian_day:=dayscount+day_offset+julian_calc(year2,month2,day2,17.75+1/8{middle of the rect}+time/4-(timezone+daylight_saving),0,0);
+      julian_day:=dayscount+day_offset+julian_calc(year2,month2,day2,17.75+1/8{middle of the rect}+time/4-(timezone+daylight_saving)+utc_correction,0,0);
 
-      wtime3:=fnmodulo((-longitude*pi/180) + siderealtime2000 +(julian_day-2451545 ) * earth_angular_velocity,2*pi); {Local celestial time. In HNSKY the site longitude is negative if east and has to be subtracted from the time}
+      if time=0 then //begin time plot date
+      begin
+        y7:= distt+round(dayscount*stepV);
+        darkform.canvas.FillRect(Rect(darkform.bevel_day.left+1,
+                                      y7,
+                                      darkform.bevel_day.left+darkform.bevel_day.width-2,
+                                      y7+ text_height7) );{wipe first, line by line for flicker free scrolling}
 
+        darkform.canvas.textout(darkform.bevel_day.left+round(darkform.canvas.TextWidth(friday+'   '))+3,y7,JdToDate_3(julian_day));
 
+        if dayscount=0 then
+        begin
+          if timezone+daylight_saving>=0 then
+            time_zone_info:='    (UTC+'+floattostrF(timezone+daylight_saving,FFGeneral,3,1)+')' //add plus symbol
+          else
+            time_zone_info:='    (UTC'+floattostrF(timezone+daylight_saving,FFGeneral,3,1)+')';
+
+          darkform.caption:=dark_skies_title+'  '+copy(JdToDate_2(julian_day-0.001{get correct date at 24 hours}),1,10)+time_zone_info;
+        end;
+
+        if round(7.00*frac((julian_day)/7))=4 then
+           darkform.canvas.textout(darkform.bevel_day.left+4,y7,friday);
+      end;
+
+      wtime3:=fnmodulo((-longitude*pi/180) + siderealtime2000 +(julian_day-2451545 ) * earth_angular_velocity,2*pi); {Local celestial_mode time. In HNSKY the site longitude is negative if east and has to be subtracted from the time}
       planet(0,0 {equinox date},julian_day,ra2,dec2,mag,length2,delta,phase,phi);
       ra_az(ra2,dec2,reallatitude,0,wtime3, azimuth2,altitude3);
 
@@ -210,7 +227,7 @@ begin
 
       if altitude2>-2*pi/180 then {apply sun set correction for limb and apparent if above -2 degrees}
       begin
-        altitude2:=altitude2 +(length2/(2*3600))*(pi/180);{sun moon not center but top}
+        altitude2:=altitude2 +(length2/(2*3600))*(pi/180);{Sun, Moon not center but top}
         if apparent_horizon<>0 then altitude2:=altitude2 -apparent_horizon; {add --34=+34 minutes correction apparent horizon}
       end;
       {else twilight calculation, no correction for limb and apparent}
@@ -241,7 +258,7 @@ begin
                      else
                      begin {moon visible}
                        moonint:=round(8+ phase*7/100);
-                     darkform.canvas.brush.color:=$001010*moonint;{intensity moon}
+                       darkform.canvas.brush.color:=$001010*moonint;{intensity moon}
                      end
       end;
 

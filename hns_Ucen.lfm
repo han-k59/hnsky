@@ -9,6 +9,7 @@ object center_on: Tcenter_on
   AutoSize = True
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
+  BorderWidth = 3
   Caption = 'Center on:'
   ClientHeight = 320
   ClientWidth = 419
@@ -19,7 +20,7 @@ object center_on: Tcenter_on
   OnShow = FormShow
   ParentFont = True
   ShowHint = True
-  LCLVersion = '2.0.10.0'
+  LCLVersion = '2.2.4.0'
   object help_searchmenu: TLabel
     Cursor = crHandPoint
     Left = 400
@@ -40,7 +41,7 @@ object center_on: Tcenter_on
     Left = 264
     Height = 26
     Hint = 'Go to the selected object or apply the wildcard to the combobox list.'
-    Top = 294
+    Top = 295
     Width = 72
     Anchors = [akLeft, akBottom]
     AutoSize = True

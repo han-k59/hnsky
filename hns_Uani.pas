@@ -36,15 +36,15 @@ type
     time_step: TGroupBox;
     object_to_follow: TGroupBox;
     planetary_ComboBox: TComboBox;
-    followstars: TRadioButton;
-    Follow_none: TRadioButton;
-    lock_on_name: TCheckBox;
-    backwards_one: TButton;
-    forwards_one: TButton;
-    unit_comboBox: TComboBox;
+    followstars1: TRadioButton;
+    Follow_none1: TRadioButton;
+    lock_on_name1: TCheckBox;
+    backwards_one1: TButton;
+    forwards_one1: TButton;
+    unit_comboBox1: TComboBox;
     stepsize2: TEdit;
-    close_button: TButton;
-    help_animation: TLabel;
+    close_button1: TButton;
+    help_animation1: TLabel;
     plus_one: TButton;
     plus_ten: TButton;
     minus_one: TButton;
@@ -52,27 +52,27 @@ type
     minus_2356: TButton;
     plus_2356: TButton;
     eclipse: TGroupBox;
-    eclipsebackwards: TButton;
-    eclipseforwards: TButton;
+    eclipsebackwards1: TButton;
+    eclipseforwards1: TButton;
     Solar_eclipse1: TRadioButton;
     Lunar_eclipse1: TRadioButton;
-    Planetary_tracks: TCheckBox;
-    moon_tracks: TCheckBox;
+    Planetary_tracks1: TCheckBox;
+    moon_tracks1: TCheckBox;
     lengthmove: TLabel;
-    number_of_steps: TEdit;
-    forwards_many: TButton;
-    stop_button: TBitBtn;
-    backwards_many: TButton;
-    continuous: TCheckBox;
+    number_of_steps1: TEdit;
+    forwards_many1: TButton;
+    stop_button1: TBitBtn;
+    backwards_many1: TButton;
+    continuous1: TCheckBox;
     ProgressBar1: TProgressBar;
     procedure FormKeyPress(Sender: TObject; var Key: char);
     procedure FormShow(Sender: TObject);
     procedure forwardmanyclick(Sender: TObject);
-    procedure close_buttonClick(Sender: TObject);
-    procedure help_animationClick(Sender: TObject);
+    procedure close_button1Click(Sender: TObject);
+    procedure help_animation1Click(Sender: TObject);
     procedure update_variables(Sender: TObject);
-    procedure lock_on_nameClick(Sender: TObject);
-    procedure Planetary_tracksClick(Sender: TObject);
+    procedure lock_on_name1Click(Sender: TObject);
+    procedure Planetary_tracks1Click(Sender: TObject);
     procedure plus_oneClick(Sender: TObject);
     procedure plus_tenClick(Sender: TObject);
     procedure minus_oneClick(Sender: TObject);
@@ -83,9 +83,9 @@ type
     procedure eclipsefind(Sender: TObject);
     procedure Solar_eclipse1Click(Sender: TObject);
     procedure planetary_ComboBoxChange(Sender: TObject);
-    procedure forwards_oneClick(Sender: TObject);
-    procedure followstarsClick(Sender: TObject);
-    procedure unit_comboBoxDropDown(Sender: TObject);
+    procedure forwards_one1Click(Sender: TObject);
+    procedure followstars1Click(Sender: TObject);
+    procedure unit_comboBox1DropDown(Sender: TObject);
   private
     { Private declarations }
   public
@@ -120,10 +120,10 @@ const
                        ((1/(24*60*60)),{seconds}
                         (1/(24*60)),{minutes}
                         (1/24),{hour}
-                        ((23+56/60+4/3600)/24),{celestial day}
+                        ((23+56/60+4/3600)/24),{celestial_mode day}
                         (1),{day}
                         (27.212220),{Draconic month}
-                        (27.321661),{celestial month}
+                        (27.321661),{celestial_mode month}
                         (29.530587981),{Synodic month}
                         (365.2421897)  {Tropical year}
                         );
@@ -187,7 +187,7 @@ begin
           (missedupdate<>0)  or  (stop_pressed));
 
   missedupdate:=2;
-  if celestial=0 then wtime2:=wtime2actual;
+  if celestial_mode=0 then wtime2:=wtime2actual;
   ra_az( ra2,dec2,latitude,0,wtime2,{var} viewx,viewy); {move sphere to center object}
 //  mainwindow.maakplaatje(bitmap2.canvas); {see before if persistent2<>0 used_canvas:=mainwindow.Canvas (direct canvas) else used_canvas:=bitmap2.canvas(indirect canvas)}
 //  mainwindow.Canvas.Draw(0, 0, Bitmap2);{simple repaint canvas, restore fast using bitmap copy}
@@ -268,7 +268,7 @@ begin
 //  canvas2.textout(400,400,s+ '               '+s2+ '               '+s3);
 
 
-  if celestial=0 then wtime2:=wtime2actual;
+  if celestial_mode=0 then wtime2:=wtime2actual;
   ra_az( ra2_moon,dec2_moon,latitude,0,wtime2,{var} viewx,viewy); {move sphere to center object with WTIME2, not WTIME2ACTUAL}
   missedupdate:=2;
   paint_sky;
@@ -305,7 +305,7 @@ begin
   end;
   animation_running:=2;
   oldnaming:=naming;{to allow surpressing naming}
-  naming:=-99999;
+  naming:=-99999;//surpress naming
   actualtime:=false; {otherwise in maakplaatje time is read}
    animation_counter:=0;
 
@@ -401,7 +401,7 @@ begin
       viewx:=oldviewx;
       viewy:=oldviewy; {move to old position}
 
-      if ((form_animation.continuous.checked=false) or (animation_running=-2){=form_animation.visible=false}) then
+      if ((form_animation.continuous1.checked=false) or (animation_running=-2){=form_animation.visible=false}) then
       begin
         animation_running:=0;
         missedupdate:=2;{wipe previous plot}
@@ -421,9 +421,9 @@ end;
 
 procedure Tform_animation.forwardmanyclick(Sender: TObject);
 begin
-  fast_forward_pressed:=sender=forwards_many;
-  fast_backwards_pressed:=sender=backwards_many;
-  stop_pressed:=sender=stop_button;
+  fast_forward_pressed:=sender=forwards_many1;
+  fast_backwards_pressed:=sender=backwards_many1;
+  stop_pressed:=sender=stop_button1;
 
   if animation_running<2 then {stopped or pauze}
   begin
@@ -431,7 +431,7 @@ begin
     update_variables(nil);
     locknaam2:=form_animation.planetary_combobox.text;
 
-    if (sender=backwards_many) then step_size:=-abs(step_size) else step_size:=abs(step_size);
+    if (sender=backwards_many1) then step_size:=-abs(step_size) else step_size:=abs(step_size);
     if tracks2<>0 then
     begin
       done_tracks:=false;{allow plotting tracks in the end of maakplaatje}
@@ -451,15 +451,15 @@ end;
 
 procedure Tform_animation.FormShow(Sender: TObject);
 begin
-   unit_comboBox.itemindex:=step_unit;
+   unit_comboBox1.itemindex:=step_unit;
 
-   form_animation.number_of_steps.text:=double_to_string_4digit_max(nr_of_steps);
+   form_animation.number_of_steps1.text:=double_to_string_4digit_max(nr_of_steps);
    form_animation.stepsize2.text:= double_to_string_4digit_max(step_size);
-   form_animation.moon_tracks.checked:=plot_moon_movement<>0;
-   form_animation.planetary_tracks.checked:=tracks2<>0;
-   followstars.checked:=celestial<>0;
-   follow_none.checked:=followstars.checked=false;
-   sidereal_animationmenu1.down:=celestial<>0;{update glyph, groupindex should be <>0, allowup:=true}
+   form_animation.moon_tracks1.checked:=plot_moon_movement<>0;
+   form_animation.planetary_tracks1.checked:=tracks2<>0;
+   followstars1.checked:=celestial_mode<>0;
+   Follow_none1.checked:=followstars1.checked=false;
+   sidereal_animationmenu1.down:=celestial_mode<>0;{update glyph, groupindex should be <>0, allowup:=true}
    Solar_eclipse1.checked:=find_solareclipse<>0;
    mainwindow.SetFocus;{active control back to mainwindow}
 
@@ -469,15 +469,15 @@ end;
 procedure Tform_animation.FormKeyPress(Sender: TObject; var Key: char);
 begin
   if key=#27 then {leave form, keypreview of form should on}
-     form_animation.close_buttonClick(nil);
+     form_animation.close_button1Click(nil);
 end;
 
-procedure Tform_animation.forwards_oneClick(Sender: TObject);
+procedure Tform_animation.forwards_one1Click(Sender: TObject);
 var
   old_animation_running:integer;
 begin
   mainwindow.SetFocus;{active control back to mainwindow}
-  if (sender=backwards_one) then step_size:=-abs(step_size) else step_size:=abs(step_size);
+  if (sender=backwards_one1) then step_size:=-abs(step_size) else step_size:=abs(step_size);
 
   old_animation_running:=animation_running;{backup}
   animation_running:=1;{pause, this only to allow update date time canvas in planetary mode using canvas_field_message}
@@ -495,11 +495,11 @@ begin
   screen.cursor:=crHourglass;
   Application.ProcessMessages ;
   planets_activated:=1;{always on}
-  form_animation.Lock_on_name.Checked:=false; {always otherwise it lock on locknaam during painting}
-  celestial:=1;{ in case the time + and - buttons are used to findout contact times}
+  form_animation.Lock_on_name1.Checked:=false; {always otherwise it lock on locknaam during painting}
+  celestial_mode:=1;{ in case the time + and - buttons are used to findout contact times}
   moon_eclipse_with1.caption:='';
 
-  if sender=eclipseforwardS then
+  if sender=eclipseforwards1 then
      begin
      if solar_eclipse1.checked then
        begin
@@ -524,13 +524,13 @@ begin
   mainwindow.SetFocus;{active control back to mainwindow}
 end;
 
-procedure Tform_animation.followstarsClick(Sender: TObject);
+procedure Tform_animation.followstars1Click(Sender: TObject);
 begin
-  if followstars.checked then celestial:=1 else celestial:=0;
-  mainwindow.celestial1.checked:=celestial<>0;
-  sidereal_animationmenu1.down:=celestial<>0;{updateglyph, groupindex should be <>0, allowup:=true}
+  if followstars1.checked then celestial_mode:=1 else celestial_mode:=0;
+  mainwindow.celestial1.checked:=celestial_mode<>0;
+  sidereal_animationmenu1.down:=celestial_mode<>0;{updateglyph, groupindex should be <>0, allowup:=true}
 
-  if celestial=0 then
+  if celestial_mode=0 then
   begin
    missedupdate:=2;
    {wtime2 is following wtime2actual and updated}
@@ -545,14 +545,14 @@ begin
 end;
 
 
-procedure Tform_animation.help_animationClick(Sender: TObject);
+procedure Tform_animation.help_animation1Click(Sender: TObject);
 begin
   open_file_with_parameters(help_path,'#animation');
 end;
 
-procedure Tform_animation.lock_on_nameClick(Sender: TObject);
+procedure Tform_animation.lock_on_name1Click(Sender: TObject);
 begin
-  if Lock_on_name.Checked then
+  if lock_on_name1.Checked then
   begin
     locknaam2:=planetary_combobox.Text;
   end
@@ -563,9 +563,9 @@ begin
     ra_az( telescope_ra,telescope_dec,latitude,0,wtime2actual,{var} viewx,viewy); {move sphere to center object}
 
   end;
-  follow_none.enabled:=lock_on_name.checked=false;
-  followstars.enabled:=lock_on_name.checked=false;
-  sidereal_animationmenu1.enabled:=lock_on_name.checked=false;{update glyph, groupindex should be <>0, allowup:=true}
+  Follow_none1.enabled:=lock_on_name1.checked=false;
+  followstars1.enabled:=lock_on_name1.checked=false;
+  sidereal_animationmenu1.enabled:=lock_on_name1.checked=false;{update glyph, groupindex should be <>0, allowup:=true}
 
   missedupdate:=2;{clear also lock=raDEC}
   paint_sky; {rewrite window}
@@ -602,7 +602,7 @@ begin
   missedupdate:=3;paint_sky; {rewrite window}
 end;
 
-procedure Tform_animation.close_buttonClick(Sender: TObject);
+procedure Tform_animation.close_button1Click(Sender: TObject);
 begin
   form_animation.update_variables(Sender);
   form_animation.visible:=false;  {hide window}
@@ -628,7 +628,7 @@ end;
 
 procedure Tform_animation.planetary_ComboBoxChange(Sender: TObject);
 begin
-  if Lock_on_name.Checked then
+  if lock_on_name1.Checked then
        locknaam2:=planetary_combobox.Text;
 end;
 
@@ -639,37 +639,37 @@ begin
   mainwindow.SetFocus;{active control back to mainwindow}
 end;
 
-procedure Tform_animation.Planetary_tracksClick(Sender: TObject);
+procedure Tform_animation.Planetary_tracks1Click(Sender: TObject);
 begin
-  lock_on_name.enabled:=planetary_tracks.Checked=false;
-  if planetary_tracks.Checked then lock_on_name.checked:=false;
-  planetary_combobox.enabled:=planetary_tracks.Checked=false;
-  moon_tracks.enabled:=planetary_tracks.Checked=true;
-  continuous.enabled:=planetary_tracks.Checked=false;
-  planetary_tracks.enabled:=continuous.Checked=false;
+  lock_on_name1.enabled:=Planetary_tracks1.Checked=false;
+  if Planetary_tracks1.Checked then lock_on_name1.checked:=false;
+  planetary_combobox.enabled:=Planetary_tracks1.Checked=false;
+  moon_tracks1.enabled:=Planetary_tracks1.Checked=true;
+  continuous1.enabled:=Planetary_tracks1.Checked=false;
+  Planetary_tracks1.enabled:=continuous1.Checked=false;
   mainwindow.SetFocus;{active control back to mainwindow}
 
 end;
 
 
-procedure Tform_animation.unit_comboBoxDropDown(Sender: TObject);
+procedure Tform_animation.unit_comboBox1DropDown(Sender: TObject);
 begin
   {$ifdef mswindows}
-  SendMessage(unit_ComboBox.Handle, CB_SETDROPPEDWIDTH, Canvas.TextWidth('Draconic month')+8, 0);{adjust width to largest width}
+  SendMessage(unit_comboBox1.Handle, CB_SETDROPPEDWIDTH, Canvas.TextWidth('Draconic month')+8, 0);{adjust width to largest width}
   {$endif}
 end;
 
 procedure Tform_animation.update_variables(Sender: TObject);
 var  err      :integer;
 begin
-  if form_animation.moon_tracks.checked then plot_moon_movement:=1 else plot_moon_movement:=0;
-  if form_animation.planetary_tracks.checked then tracks2:=1 else tracks2:=0;
+  if form_animation.moon_tracks1.checked then plot_moon_movement:=1 else plot_moon_movement:=0;
+  if form_animation.planetary_tracks1.checked then tracks2:=1 else tracks2:=0;
   val(form_animation.stepsize2.text,step_size,err); step_size:=minmax(step_size,0.0001,999999);
-  val(form_animation.number_of_steps.text,nr_of_steps,err);
-  step_unit:=unit_comboBox.itemindex;
-  follow_none.enabled:=lock_on_name.checked=false;
-  followstars.enabled:=lock_on_name.checked=false;
-  sidereal_animationmenu1.down:=lock_on_name.checked=false;{update glyph, groupindex should be <>0, allowup:=true}
+  val(form_animation.number_of_steps1.text,nr_of_steps,err);
+  step_unit:=unit_comboBox1.itemindex;
+  Follow_none1.enabled:=lock_on_name1.checked=false;
+  followstars1.enabled:=lock_on_name1.checked=false;
+  sidereal_animationmenu1.down:=lock_on_name1.checked=false;{update glyph, groupindex should be <>0, allowup:=true}
   mainwindow.SetFocus;{active control back to mainwindow}
 
 end;

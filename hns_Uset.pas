@@ -30,7 +30,7 @@ uses
  {$endif}
 
   Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  StdCtrls, Buttons, ComCtrls, ExtCtrls,
+  StdCtrls, Buttons, ComCtrls, ExtCtrls, Spin,
   inifiles;
 
 
@@ -56,9 +56,10 @@ type
     col41: TLabel;
     col42_1: TLabel;
     col23: TLabel;
+    no_telescope1: TRadioButton;
+    trackingmethod1: TComboBox;
+    solartrackingmethod1: TGroupBox;
     internetcomet1: TComboBox;
-    medium_limit1: TUpDown;
-    medium_limit2: TUpDown;
     nr_asteroids_extracted1: TLabel;
     selectpath3: TBitBtn;
     selectpath4: TBitBtn;
@@ -179,7 +180,7 @@ type
     fonts2: TEdit;
     fonts3: TEdit;
     font_setting: TBitBtn;
-    font_sizes: TLabel;
+    font_sizes1: TLabel;
     frequencyof: TLabel;
     gemini: TLabel;
     geminifontsize: TUpDown;
@@ -278,7 +279,7 @@ type
     Ascom_radiobutton1: TRadioButton;
     disconnect_telescope_button1: TBitBtn;
     connect_telescope_button1: TBitBtn;
-    INDI_radioButton1: TRadioButton;
+    indi_radioButton1: TRadioButton;
     indi_host_address1: TEdit;
     indi_port1: TEdit;
     show_indi_client_button1: TBitBtn;
@@ -286,12 +287,14 @@ type
 
 
     procedure alpaca_radiobutton1Change(Sender: TObject);
-    procedure Ascom_radiobutton1Change(Sender: TObject);
+    procedure Ascom_radiobutton1Click(Sender: TObject);
     procedure DE430_on1Change(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: char);
+    procedure no_telescope1Change(Sender: TObject);
+    procedure screenupdate1Changing(Sender: TObject; var AllowChange: Boolean);
     procedure showlocation(Sender: TObject);
     procedure longitude2Exit(Sender: TObject);
-    procedure telescope_name_select1GetItems(Sender: TObject);
+    procedure telescope_name_select1CloseUp(Sender: TObject);
     procedure vizier_server1Change(Sender: TObject);
     procedure DE430_file1DblClick(Sender: TObject);
 
@@ -300,7 +303,7 @@ type
     procedure connect_telescope_button1Click(Sender: TObject);
     procedure connect_server_Button1Click(Sender: TObject);
     procedure disconnect_server_Button1Click(Sender: TObject);
-    procedure INDI_radioButton1Click(Sender: TObject);
+    procedure indi_radioButton1Change(Sender: TObject);
     {$ELSE} {delphi}
     {$ENDIF}
     procedure underline1Click(Sender: TObject);
@@ -393,20 +396,28 @@ var
 
 procedure TSettings.connect_server_Button1Click(Sender: TObject);
 begin
-//  disconnect_indi_server;{2017-4-27 | in indi form}
-//  application.processmessages; {wait a little}
-//  Sleep(50);{wait 50 ms to be sure}
   settings.telescope_name_select1.items.clear;{clear drivers from list box}
   INDI_server_address:=indi_host_address1.text; {localhost}
   INDI_port:=indi_port1.text;{7624}
-  indi.connect_indi_server_btn1Click(nil);
+  indi_client_on(true);
+
+  telescope_name_select1.items.clear; {remove devices list, allow update}
+  if indi<>nil then //if form exists
+    indi.telescope_name_select2.items.clear; {remove devices list, allow update}
+  request_indi_properties;{ask server for an update and therefore start to rebuild}
 end;
+
 
 procedure TSettings.connect_telescope_button1Click(Sender: TObject);
 begin
-  INDI_telescope_name:=telescope_name_select1.text;
-  connect_indi_device(indi_telescope_name);
+  if indi_client_connected then
+  begin
+    INDI_telescope_name:=telescope_name_select1.text;
+    connect_indi_device(indi_telescope_name);
+  end;
 end;
+
+
 procedure TSettings.show_indi_client_button1Click(Sender: TObject);
 begin
   indi.visible:=true;
@@ -416,7 +427,7 @@ end;
 
 procedure TSettings.disconnect_telescope_button1Click(Sender: TObject);
 begin
-  INDI_disconnect_device(indi_telescope_name);{in indi form}
+  disconnect_indi_device(indi_telescope_name);{in indi form}
 end;
 
 
@@ -426,18 +437,14 @@ begin
 end;
 
 
-procedure TSettings.INDI_radioButton1Click(Sender: TObject);
-var
-   ind : boolean;
+procedure TSettings.indi_radioButton1Change(Sender: TObject);
 begin
-  ind:=INDI_radioButton1.checked;
-  INDI_groupBox1.enabled:=ind;
-  if ind then
+  if indi_radioButton1.checked then
   begin
     telescope_interface:='I';
     alpaca_groupBox1.enabled:=false;
-
     switch_alpaca_client_onoff(false);
+    INDI_groupBox1.enabled:=true;
     indi_client_on(true);
   end;
 end;
@@ -481,7 +488,7 @@ begin
 end;
 
 
-procedure TSettings.Ascom_radiobutton1Change(Sender: TObject);
+procedure TSettings.Ascom_radiobutton1Click(Sender: TObject);
 begin
   if Ascom_radiobutton1.checked=true then
   begin
@@ -529,6 +536,34 @@ begin
   if key=#27 then CancelClick(nil);{close form, set form key preview on}
 end;
 
+procedure TSettings.no_telescope1Change(Sender: TObject);
+begin
+  if no_telescope1.checked then
+  begin
+    telescope_interface:=' ';
+
+    alpaca_groupBox1.enabled:=false;
+    switch_alpaca_client_onoff(false);
+
+    INDI_groupBox1.enabled:=false;
+    indi_client_on(false);
+  end;
+end;
+
+procedure TSettings.screenupdate1Changing(Sender: TObject;  var AllowChange: Boolean);
+var
+   minv : integer;
+begin
+  if screenupdate1.position<=30 then screenupdate1.increment:=5
+  else
+  if screenupdate1.position<=60 then screenupdate1.increment:=10
+  else
+  if screenupdate1.position<=120 then screenupdate1.increment:=20
+  else
+  screenupdate1.increment:=60;
+end;
+
+
 procedure TSettings.vizier_server1Change(Sender: TObject);
 begin
   vizier_server:=trim(vizier_server1.text);
@@ -575,9 +610,9 @@ begin
         time_zone_number(time_zone1.text, dst_auto, timezone);
 
         begin
-          if (north2.checked) then north:=1 else north:=-1;
-          if reallatitude<0 then north:=-north;
-          reallatitude:=north*abs(reallatitude);
+          if (north2.checked) then northc:=1 else northc:=-1;
+          if reallatitude<0 then northc:=-northc;
+          reallatitude:=northc*abs(reallatitude);
           if dayl_saving1.checked then daylight_saving:=1 else daylight_saving:=0;
           if DeltaT_correction1.checked then
           begin
@@ -689,6 +724,21 @@ begin
       de430_loaded:=false;
     end;
 
+    INDI_server_address:=indi_host_address1.text; {localhost}
+    INDI_port:=indi_port1.text;{7624}
+    INDI_telescope_name:=telescope_name_select1.text;
+
+    server_address:=server_host_address_edit1.text;
+    server_port:=server_port1.text;{7700}
+    if  server_on<>server_checkbox1.Checked then switch_server_onoff(server_checkbox1.Checked);{start or stop server if changed}
+    server_on:=server_checkbox1.Checked;{store setting}
+
+    alpaca_address:=alpaca_adress1.text;{127.0.0.1}
+    alpaca_port:=alpaca_port1.text;{11111}
+    alpaca_telescope:=alpaca_telescope1.text;{0}
+
+    trackingmethod:=trackingmethod1.itemindex;
+
     settings.close;
     mainwindow.setfocus;
     missedupdate:=2;{rewrite window}
@@ -702,20 +752,6 @@ begin
                  Zoom_show_DSS:=1 else Zoom_show_DSS:=4;
 
   {$ifdef fpc}
-  INDI_server_address:=indi_host_address1.text; {localhost}
-  INDI_port:=indi_port1.text;{7624}
-  INDI_telescope_name:=telescope_name_select1.text;
-
-  server_address:=server_host_address_edit1.text;
-  server_port:=server_port1.text;{7700}
-  if  server_on<>server_checkbox1.Checked then switch_server_onoff(server_checkbox1.Checked);{start or stop server if changed}
-  server_on:=server_checkbox1.Checked;{store setting}
-
-  alpaca_address:=alpaca_adress1.text;{127.0.0.1}
-  alpaca_port:=alpaca_port1.text;{11111}
-  alpaca_telescope:=alpaca_telescope1.text;{0}
-
-
   {$else} {delphi}
   {$endif}
 end;
@@ -777,6 +813,8 @@ begin
     col20.font.color:=colors[20];
     col20line.font.color:=colors[20];
     col21.font.color:=colors[21];
+
+    col23.caption:='⮑';
     col23.font.color:=colors[23];
 
     col24.font.color:=colors[24];
@@ -962,15 +1000,20 @@ begin
    show_location;
 end;
 
+
 procedure TSettings.longitude2Exit(Sender: TObject);
 begin
    show_location;
 end;
 
 
-procedure TSettings.telescope_name_select1GetItems(Sender: TObject);
+procedure TSettings.telescope_name_select1CloseUp(Sender: TObject);
 begin
-    settings.telescope_name_select1.items:=indi.telescope_name_select2.items;{update devices menu}
+  indi_telescope_name:=telescope_name_select1.text;
+  indi.telescope_name_select2.text:=indi_telescope_name;
+
+  free_all_tabs;{remove all tabs and buttons in the bulk way}
+  request_indi_properties;{ask server for an update and therefore start to rebuild}
 end;
 
 
@@ -982,20 +1025,17 @@ begin
      settings.DeltaT_correction1.Caption:=deltaT_correction;
      Label_frame1.hint:= mainwindow.Measuringframe1.hint;{popup hint, to rotate measuring frame}
   end;
-
-
   showcolors;
 
   screenupdate1.position:=timestep;
-
   telrad01.text:=floattostrF_local(telrad[1],0,3);
   telrad02.text:=floattostrF_local(telrad[2],0,3);
   telrad03.text:=floattostrF_local(telrad[3],0,3);
   telrad04.text:=floattostrF_local(telrad[4],0,3);
   telrad05.text:=floattostrF_local(telrad[5],0,3);
 
-  if north<0 then begin north2.checked:=false;south2.checked:=true;end
-             else begin north2.checked:=true;south2.checked:=false;end;
+  if northc<0 then begin north2.checked:=false;south2.checked:=true;end
+              else begin north2.checked:=true;south2.checked:=false;end;
 
   dayl_saving1.checked:=daylight_saving=1;
 
@@ -1180,9 +1220,9 @@ begin
   if sender=col24 then  make_new_font_color(24);{star labels}
   if ((sender=col18){ or (sender=moon)}) then  make_new_font_color(18);{sun moon}
   if sender=col21 then  make_new_font_color(21);{mercury ... saturn}
-  if sender=col23 then  make_new_font_color(23);{north east arrow}
 
-  if ((sender=col1)) then make_new_color(1);{Stars}
+  if sender=col23 then   make_new_color(23); {north east arrow}
+  if sender=col1 then make_new_color(1);{Stars}
 
   if sender=col32 then  make_new_color(32);{inner planets}
   if sender=col33 then  make_new_color(33);{sun moon}
@@ -1245,6 +1285,7 @@ begin
   west3:=striphotkey(west2.Caption);
   south3:=striphotkey(south2.Caption);
   north3:=striphotkey(north2.Caption);
+
 end;
 
 
@@ -1279,23 +1320,8 @@ begin
   show_fonts;
   missedupdate:=2; {rewrite window}
   paint_sky;
-
-
-   {carefull name fontsize is already used in delphi !!!!}
-
-//  mainwindow.font.name:=font_name;{new for font setting in other windows}
-//  mainwindow.font.charset:=font_charset; {rest (most) will follow}
-
-//  settime.font.name:=font_name;{new for font settings in other windows}
-//  settime.font.charset:=font_charset; {rest (most) will follow}
-//  go_to.font.name:=font_name;{new for font settings in other windows}
-//  go_to.font.charset:=font_charset; {rest (most) will follow}
-//  center_on.font.name:=font_name;{new for font settings in other windows}
-//  center_on.font.charset:=font_charset; {rest (most) will follow}
-//  objectmenu.font.name:=font_name;{new for font settings in other windows}
-//  objectmenu.font.charset:=font_charset; {rest (most) will follow}
-
 end;
+
 
 procedure TSettings.fontsizeClick(Sender: TObject; Button: TUDBtnType);
 begin
@@ -1317,22 +1343,41 @@ begin
   settings.col39.left:=settings.col31.left;
   settings.col39.top:=settings.col25.top;{link it to col29}
   settings.col39.height:=settings.col25.height;{autosize tlabel doesn't work}
-  settings.col39.width :=settings.col25.width*2;{autosize tlabel doesn't work}
+  settings.col39.width :=settings.col25.width*3;{autosize tlabel doesn't work}
+
+  application.processmessages;//essential for Darwin. Otherwise application crashes.
   missedupdate:=2;paint_sky; {rewrite window}
 
 end;
 
 procedure TSettings.FormCreate(Sender: TObject);
 begin
+  {$ifdef mswindows}
+  {$else} {unix}
+     Ascom_radiobutton1.visible:=false; //caption:= not_available; {not available in Linux}
+     Ascom_radiobutton1.checked:=false;
+     trackingmethod1.items.Delete(5);//moveaxis does not exist in Indi
+     trackingmethod1.items.Delete(4);
+     trackingmethod1.items.Delete(3);
+  {$endif}
+
+
   PageControl1.ActivePage := PageControl1.Pages[page_settings];{set active page}
  {$ifdef fpc}
   Ascom_radiobutton1.checked:=(telescope_interface='A');
   Alpaca_radiobutton1.checked:=(telescope_interface='C');
   Alpaca_groupBox1.enabled   :=(telescope_interface='C');
-  INDI_radioButton1.checked :=(telescope_interface='I');
+  indi_radioButton1.checked :=(telescope_interface='I');
   INDI_groupBox1.enabled   :=(telescope_interface='I');
-  telescope_name_select1.items.add(INDI_telescope_name);
-  telescope_name_select1.itemindex:=0;
+  no_telescope1.checked :=(telescope_interface=' ');
+
+
+  if INDI_telescope_name<>'' then
+  begin
+    telescope_name_select1.items.add(INDI_telescope_name);
+    telescope_name_select1.itemindex:=0;
+  end;
+
   indi_host_address1.text:=INDI_server_address; {localhost}
   indi_port1.text:=INDI_port;{7624}
 
@@ -1344,17 +1389,10 @@ begin
   alpaca_port1.text:=alpaca_port;{11111}
   alpaca_telescope1.text:=alpaca_telescope;{0}
 
+  trackingmethod1.itemindex:=trackingmethod;
 
  {$else} {delphi}
  {$endif}
-
-
-
-  {$ifdef mswindows}
-  {$else} {unix}
-     Ascom_radiobutton1.visible:=false; //caption:= not_available; {not available in Linux}
-     Ascom_radiobutton1.checked:=false;
-  {$endif}
 
 end;
 
@@ -1367,7 +1405,6 @@ begin
 
  {$ifdef fpc}
   if indi_client_connected then connect_server_Button1.font.color:=cllime else
-//  if indi_server_connecting then connect_server_Button1.font.color:=$009090 {dark yellow} else
   connect_server_Button1.font.color:=clRed;
 
   if indi_telescope_connected then

@@ -1,5 +1,5 @@
 unit hns_Unon;
-{Copyright (C) 1997, 2022 by Han Kleijn, www.hnsky.org
+{Copyright (C) 1997, 2023 by Han Kleijn, www.hnsky.org
  email: han.k.. at...hnsky.org    }
 
 {This program is free software: you can redistribute it and/or modify
@@ -110,7 +110,8 @@ begin
   not_found:=ReadString('general','not_found','?');
   not_available:=ReadString('general','not_available','?');
   click_to_copy_string :=ReadString('general','click_to_copy_string','?');
-
+  copy_to_clipboard:=ReadString('general','copy_to_clipboard','?'); //for angular distance measurement
+  close_str:=ReadString('general','close_string','?');//for angular distance measurement
 
   new_user_title:=ReadString('general','new_user_title','?');
   new_user1:=ReadString('general','new_user1','?');
@@ -245,7 +246,7 @@ begin
      language_mode:=0; {disable, otherwise everywhere ?}
      exit;
    end;
-   if s<>'4230' then
+   if s<>'42150' then
       application.messagebox(pchar('Your language module is not up to date !!!'+#10+#13+#10+#13+'The language module is in a single *.INI file. Download and replace the language module *.INI manually.'),'update required !',MB_ICONWARNING+MB_OK);
 
   s:=ReadString('system', 'help_path', '?');
@@ -316,11 +317,10 @@ begin
   mainwindow.Fliphorizontal1.hint:=wrap(ReadString('mainmenu','fliphorizontalh','?'));
   mainwindow.Flipvertical1.caption:=(readstring('mainmenu','flipverticalC','?'));
   mainwindow.Flipvertical1.hint:=wrap(ReadString('mainmenu','flipverticalh','?'));
-//  mainwindow.Northabove1.caption:=(readstring('mainmenu','northaboveC','?'));
-//  mainwindow.Northabove1.hint:=wrap(ReadString('mainmenu','northaboveh','?'));
   mainwindow.celestial1.caption:=(readstring('mainmenu','celestialC','?'));
   mainwindow.celestial1.hint:=wrap(ReadString('mainmenu','celestialH','?'));
-
+  mainwindow.no_sidereal_motion1.caption:=(readstring('mainmenu','no_siderealC','?'));
+  mainwindow.no_sidereal_motion1.hint:=wrap(ReadString('mainmenu','no_siderealH','?'));
 
   mainwindow.animation1.caption:=(readstring('mainmenu','animationC','?'));
   mainwindow.animation1.hint:=wrap(ReadString('mainmenu','animationH','?'));
@@ -493,6 +493,8 @@ begin
   mainwindow.Printwindowwhitesky1.shortcut:=TextToShortCut(ReadString('shortcuts','printwindowwhiteskyS','?'));
 
   mainwindow.celestial1.shortcut:=TextToShortCut(ReadString('shortcuts','celestialS','?'));
+  mainwindow.no_sidereal_motion1.shortcut:=TextToShortCut(ReadString('shortcuts','no_siderealS','?'));
+
 
   mainwindow.Objects1.shortcut:=TextToShortCut(ReadString('shortcuts','objectsS','?'));
   mainwindow.Usesystemtime1.shortcut:=TextToShortCut(ReadString('shortcuts','usesystemtimeS','?'));
@@ -558,6 +560,7 @@ begin
     Mainwindow.simbad1.hint:=wrap(ReadString('popup','simbad_queryH','?'));
     Mainwindow.hyperleda1.hint:=wrap(ReadString('popup','hyperleda_queryH','?'));
     Mainwindow.ned1.hint:=wrap(ReadString('popup','ned_queryH','?'));
+    Mainwindow.internal1.caption:=wrap(ReadString('popup','internal_queryC','?'));
     Mainwindow.internal1.hint:=wrap(ReadString('popup','internal_queryH','?'));
 
     mainwindow.bandpassmenu1.caption:=(readstring('popup','bandpassC','?'));
@@ -567,12 +570,20 @@ begin
     mainwindow.dss_red1.caption:=(readstring('popup','dss1rC','?'));
     mainwindow.dss_blue1.caption:=(readstring('popup','dss1bC','?'));
 
+    Mainwindow.bandpassmenu1.hint:=wrap(ReadString('popup','bandpassH','?'));
+    Mainwindow.dss2_red1.hint:=wrap(ReadString('popup','dss2rH','?'));
+    Mainwindow.dss2_blue1.hint:=wrap(ReadString('popup','dss2bH','?'));
+    Mainwindow.dss2_infrared1.hint:=wrap(ReadString('popup','dss2iH','?'));
+    Mainwindow.dss_red1.hint:=wrap(ReadString('popup','dss1rH','?'));
+    Mainwindow.dss_blue1.hint:=wrap(ReadString('popup','dss1bH','?'));
+
+
+
     Mainwindow.Cleardownload1.caption:=(readstring('popup','clear_downloadC','?'));
     Mainwindow.Cleardownload1.hint:=wrap(ReadString('popup','clear_downloadH','?'));
 
     Mainwindow.clearvisibledownload1.caption:=(readstring('popup','clear_download_visibleC','?'));
     Mainwindow.clearvisibledownload1.hint:=wrap(ReadString('popup','clear_download_visibleH','?'));
-
 
 
     delete_question_string_dss:=(ReadString('popup','delete_allQ','?'));
@@ -649,10 +660,13 @@ begin
     mainwindow.telescope_abort1.hint:=wrap(ReadString('popup','telescope_abortH','?'));
 
 
+    track_by_slews_string:=(readstring('popup','track_by_slewsC','?'));
+    mainwindow.TrackSolarObjectbySlews1.caption:=track_by_slews_string;
+    mainwindow.TrackSolarObjectbySlews1.hint:=wrap(ReadString('popup','track_by_slewsH','?'));
 
-    mainwindow.Followsolarobject1.caption:=(readstring('popup','follow_solar_objectC','?'));
-    follow_string:=ReadString('popup','follow_solar_object2C','?');
-    mainwindow.Followsolarobject1.hint:=wrap(ReadString('popup','follow_solar_objectH','?'));
+    track_smooth_string:=(readstring('popup','track_smoothC','?'));
+    mainwindow.TrackRateAsSolarobject1.caption:=track_smooth_string;
+    mainwindow.TrackRateAsSolarobject1.hint:=wrap(ReadString('popup','track_smoothH','?'));
 
     mainwindow.tracktelescope1.caption:=(readstring('popup','track_telescopeC','?'));
     mainwindow.tracktelescope1.hint:=wrap(ReadString('popup','track_telescopeH','?'));
@@ -991,6 +1005,16 @@ begin
   settings.grp_documents_path.caption:=(readstring('settings','grp_documents_pathC','?'));
   settings.grp_documents_path.hint:=wrap(ReadString('settings','grp_documents_pathH','?'));
 
+  settings.solartrackingmethod1.caption:=(readstring('settings','solartrackingC','?'));
+
+  settings.trackingmethod1.items.clear;
+  settings.trackingmethod1.items.add(readstring('settings','trackingmethod0','?'));//add, replace gives runtime errors in Linux
+  settings.trackingmethod1.items.add(readstring('settings','trackingmethod1','?'));
+  settings.trackingmethod1.items.add(readstring('settings','trackingmethod2','?'));
+  settings.trackingmethod1.items.add(readstring('settings','trackingmethod3','?'));
+  settings.trackingmethod1.items.add(readstring('settings','trackingmethod4','?'));
+  settings.trackingmethod1.items.add(readstring('settings','trackingmethod5','?'));
+
   settings.grs_offset3.caption:=wrap(ReadString('settings','grs_offsetC','?'));
   settings.grs_offset2.hint:=wrap(ReadString('settings','grs_offsetH','?'));
   settings.jupiter_groupbox1.caption:=Jupiter_string;
@@ -1001,8 +1025,11 @@ begin
 
   settings.Colors_tab.caption:=(readstring('settings','colors_tabC','?'));
   settings.click_on.caption:=(readstring('settings','click_onC','?'));
-  settings.font_sizes.caption:=(readstring('settings','font_sizesC','?'));
+  settings.font_sizes1.caption:=(readstring('settings','font_sizesC','?'));
   settings.font_setting.hint:=wrap(ReadString('settings','font_settingH','?'));
+  settings.underline1.caption:=(readstring('settings','underlineC','?'));
+  settings.underline1.hint:=wrap(ReadString('settings','underlineH','?'));
+
   settings.colorpanel.hint:=wrap(ReadString('settings','colorpanelH','?'));
   settings.col8.caption:=(readstring('settings','col8C','?'));
 
@@ -1153,9 +1180,11 @@ begin
   settings.alpaca_telescope2.caption:=(ReadString('settings','apaca_telescopeC','?'));
   settings.alpaca_telescope1.hint:=wrap(ReadString('settings','alpaca_telescopeH','?'));
 
-
   settings.indi_radiobutton1.caption:=(readstring('settings','indiC','?'));
   settings.indi_radiobutton1.hint:=wrap(ReadString('settings','indiH','?'));
+
+  settings.no_telescope1.caption:=(readstring('settings','no_telescopeC','?'));
+  settings.no_telescope1.hint:=wrap(ReadString('settings','no_telescopeH','?'));
 
   settings.indi_groupbox1.caption:=(readstring('settings','indi_group_boxC','?'));
 
@@ -1327,12 +1356,12 @@ begin
     form_animation.caption:=(readstring('animation','animation_title','?'));
 
     form_animation.object_to_follow.caption:=(readstring('animation','object_to_followC','?'));
-    form_animation.followstars.caption:=(readstring('animation','starsC','?'));
-    form_animation.followstars.hint:=wrap(ReadString('animation','starsH','?'));
-    form_animation.follow_none.caption:=(readstring('animation','noneC','?'));
-    form_animation.follow_none.hint:=wrap(ReadString('animation','noneH','?'));
-    form_animation.lock_on_name.caption:=(readstring('animation','planetaryC','?'));
-    form_animation.lock_on_name.hint:=wrap(ReadString('animation','planetaryH','?'));
+    form_animation.followstars1.caption:=(readstring('animation','starsC','?'));
+    form_animation.followstars1.hint:=wrap(ReadString('animation','starsH','?'));
+    form_animation.follow_none1.caption:=(readstring('animation','noneC','?'));
+    form_animation.follow_none1.hint:=wrap(ReadString('animation','noneH','?'));
+    form_animation.lock_on_name1.caption:=(readstring('animation','planetaryC','?'));
+    form_animation.lock_on_name1.hint:=wrap(ReadString('animation','planetaryH','?'));
     form_animation.planetary_comboBox.hint:=wrap(ReadString('animation','planetary_comboboxH','?'));
 
 
@@ -1343,40 +1372,40 @@ begin
     form_animation.plus_2356.hint:=wrap(ReadString('animation','plus_2356H','?'));
     form_animation.plus_ten.hint:=wrap(ReadString('animation','plus_tenH','?'));
     form_animation.plus_one.hint:=wrap(ReadString('animation','plus_oneH','?'));
-    form_animation.backwards_one.hint:=wrap(ReadString('animation','backwards_oneH','?'));
-    form_animation.forwards_one.hint:=wrap(ReadString('animation','forwards_oneH','?'));
+    form_animation.backwards_one1.hint:=wrap(ReadString('animation','backwards_oneH','?'));
+    form_animation.forwards_one1.hint:=wrap(ReadString('animation','forwards_oneH','?'));
     form_animation.stepsize2.hint:=wrap(ReadString('animation','stepsizeH','?'));
-    form_animation.unit_combobox.hint:=wrap(ReadString('animation','unit_comboboxH','?'));
+    form_animation.unit_combobox1.hint:=wrap(ReadString('animation','unit_comboboxH','?'));
 
-    form_animation.unit_combobox.items[0]:=ReadString('animation','unit0','?'); {second}
-    form_animation.unit_combobox.items[1]:=ReadString('animation','unit1','?'); {minute}
-    form_animation.unit_combobox.items[2]:=ReadString('animation','unit2','?'); {hour}
-    form_animation.unit_combobox.items[3]:=ReadString('animation','unit3','?');
-    form_animation.unit_combobox.items[4]:=ReadString('animation','unit4','?');
-    form_animation.unit_combobox.items[5]:=ReadString('animation','unit5','?');
-    form_animation.unit_combobox.items[6]:=ReadString('animation','unit6','?');
-    form_animation.unit_combobox.items[7]:=ReadString('animation','unit7','?');
-    form_animation.unit_combobox.items[8]:=ReadString('animation','unit8','?');
+    form_animation.unit_combobox1.items[0]:=ReadString('animation','unit0','?'); {second}
+    form_animation.unit_combobox1.items[1]:=ReadString('animation','unit1','?'); {minute}
+    form_animation.unit_combobox1.items[2]:=ReadString('animation','unit2','?'); {hour}
+    form_animation.unit_combobox1.items[3]:=ReadString('animation','unit3','?');
+    form_animation.unit_combobox1.items[4]:=ReadString('animation','unit4','?');
+    form_animation.unit_combobox1.items[5]:=ReadString('animation','unit5','?');
+    form_animation.unit_combobox1.items[6]:=ReadString('animation','unit6','?');
+    form_animation.unit_combobox1.items[7]:=ReadString('animation','unit7','?');
+    form_animation.unit_combobox1.items[8]:=ReadString('animation','unit8','?');
 
-    form_animation.backwards_many.hint:=wrap(ReadString('animation','backwards_manyH','?'));
-    form_animation.forwards_many.hint:=wrap(ReadString('animation','forward_manyH','?'));
-    form_animation.stop_button.hint:=wrap(ReadString('animation','stop_buttonH','?'));
-    form_animation.number_of_steps.hint:=wrap(ReadString('animation','number_of_stepsH','?'));
-    form_animation.continuous.caption:=(readstring('animation','continuousC','?'));
-    form_animation.continuous.hint:=wrap(ReadString('animation','continuousH','?'));
-    form_animation.planetary_tracks.caption:=(readstring('animation','planetary_tracksC','?'));
-    form_animation.planetary_tracks.hint:=wrap(ReadString('animation','planetary_tracksH','?'));
-    form_animation.moon_tracks.caption:=(readstring('animation','moon_tracksC','?'));
-    form_animation.moon_tracks.hint:=wrap(ReadString('animation','moon_tracksH','?'));
+    form_animation.backwards_many1.hint:=wrap(ReadString('animation','backwards_manyH','?'));
+    form_animation.forwards_many1.hint:=wrap(ReadString('animation','forward_manyH','?'));
+    form_animation.stop_button1.hint:=wrap(ReadString('animation','stop_buttonH','?'));
+    form_animation.number_of_steps1.hint:=wrap(ReadString('animation','number_of_stepsH','?'));
+    form_animation.continuous1.caption:=(readstring('animation','continuousC','?'));
+    form_animation.continuous1.hint:=wrap(ReadString('animation','continuousH','?'));
+    form_animation.planetary_tracks1.caption:=(readstring('animation','planetary_tracksC','?'));
+    form_animation.planetary_tracks1.hint:=wrap(ReadString('animation','planetary_tracksH','?'));
+    form_animation.moon_tracks1.caption:=(readstring('animation','moon_tracksC','?'));
+    form_animation.moon_tracks1.hint:=wrap(ReadString('animation','moon_tracksH','?'));
 
     form_animation.eclipse.caption:=(readstring('animation','eclipseC','?'));
-    form_animation.eclipsebackwards.hint:=wrap(ReadString('animation','eclipsebackwardsH','?'));
-    form_animation.eclipseforwards.hint:=wrap(ReadString('animation','eclipseforwardsH','?'));
+    form_animation.eclipsebackwards1.hint:=wrap(ReadString('animation','eclipsebackwardsH','?'));
+    form_animation.eclipseforwards1.hint:=wrap(ReadString('animation','eclipseforwardsH','?'));
     form_animation.solar_eclipse1.caption:=(readstring('animation','solarC','?'));
     form_animation.lunar_eclipse1.caption:=(readstring('animation','lunarC','?'));
-    form_animation.close_button.caption:=(readstring('animation','close_buttonC','?'));
-    form_animation.close_button.hint:=wrap(ReadString('animation','close_buttonH','?'));
-    form_animation.help_animation.hint:=wrap(ReadString('animation','helpH','?'));
+    form_animation.close_button1.caption:=(readstring('animation','close_buttonC','?'));
+    form_animation.close_button1.hint:=wrap(ReadString('animation','close_buttonH','?'));
+    form_animation.help_animation1.hint:=wrap(ReadString('animation','helpH','?'));
   end;
 end;
 

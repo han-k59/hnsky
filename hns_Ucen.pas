@@ -216,6 +216,7 @@ begin
   paint_sky;{rewrite window}
 end;
 
+
 procedure Tcenter_on.constellations1Click(Sender: TObject);
 var i:integer;
 begin
@@ -595,7 +596,7 @@ var
   mag2:=0; {is compared with deep for maximum magnitude, should be set low before starting}
   linepos :=2;
   mode:=5;
-  deep:=99999999;
+//  deepnr:=99999999;
   if sender=deepsky1 then maxlinepos:=position_deep2 {search until begin second section}
   else
   if sender=deepsky2 then maxlinepos:=position_deep3  {search until begin third section}
@@ -638,22 +639,9 @@ end;
 procedure Tcenter_on.FormPaint(Sender: TObject);
 begin
   if ((center_on.slewto1.checked) and (mainwindow.connect_telescope1.Checked)) then go_to1.glyphshowmode:=gsmApplication {show telescope glyph}
-                                                                     else go_to1.glyphshowmode:=gsmnever;
-
-//  if ((mainwindow.tracktelescope1.checked) and (mainwindow.connect_telescope1.Checked)) then go_to1.glyphshowmode:=gsmApplication {show telescope glyph}
-//                                                                                       else go_to1.glyphshowmode:=gsmnever;
-
- supp1.enabled:=suppl1_activated<>0;
- supp2.enabled:=suppl2_activated<>0;
- supp3.enabled:=suppl3_activated<>0;
- supp4.enabled:=suppl4_activated<>0;
- supp5.enabled:=suppl5_activated<>0;
- asteroids1.enabled:=asteroids_activated<>0;
- comets1.enabled:=comets_activated<>0;
-// planets1.enabled:=planets_activated<>0;{removed 2019}
+                                                                               else go_to1.glyphshowmode:=gsmnever;
 
  brightstars1.enabled:=((stars_activated<>0) and ((stardatabase_displayed=0) or (stardatabase_displayed=290)));
-// deepsky1.enabled:=deep_database<>0;{removed 2019}
 
  deepsky1.caption:=Deepsky_string+'1';
 

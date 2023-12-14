@@ -290,7 +290,7 @@ begin
 
      if ucaczon[i]>1 then starsdone[i]:=u4indexda[1,ucaczon[i],1] else starsdone[i]:=0;{else v230b}
      if ((ucaczon[i]<10 {was2}) or (ucaczon[i]>890  {was 359})) then
-      begin seek_startposition[i]:=0;seek_stopposition[i]:=0;end {show celestial poles always complete}
+      begin seek_startposition[i]:=0;seek_stopposition[i]:=0;end {show celestial_mode poles always complete}
      else                                                             {v223b start with 0 statt 1}
      begin
        seek_startposition[i]:=u4indexda[1,trunc(rastart),trunc(ucaczon[i])] + trunc(frac(rastart)*(u4indexda[1,trunc(rastart+1),trunc(ucaczon[i])] - u4indexda[1,trunc(rastart),trunc(ucaczon[i])])){frac} {- starsdone[i]}{start};

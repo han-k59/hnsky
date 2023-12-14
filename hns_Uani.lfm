@@ -18,7 +18,7 @@ object form_animation: Tform_animation
   ParentFont = True
   PopupMode = pmAuto
   LCLVersion = '2.0.12.0'
-  object help_animation: TLabel
+  object help_animation1: TLabel
     Cursor = crHandPoint
     Left = 256
     Height = 21
@@ -35,7 +35,7 @@ object form_animation: Tform_animation
     ParentShowHint = False
     ShowHint = True
     Transparent = False
-    OnClick = help_animationClick
+    OnClick = help_animation1Click
   end
   object time_step: TGroupBox
     Left = 0
@@ -58,31 +58,31 @@ object form_animation: Tform_animation
       Caption = 'X'
       ParentColor = False
     end
-    object backwards_one: TButton
+    object backwards_one1: TButton
       Left = 0
       Height = 27
       Hint = 'One step backwards.'
       Top = 44
       Width = 35
       Caption = '<'
-      OnClick = forwards_oneClick
+      OnClick = forwards_one1Click
       ParentShowHint = False
       ShowHint = True
       TabOrder = 6
     end
-    object forwards_one: TButton
+    object forwards_one1: TButton
       Left = 37
       Height = 27
       Hint = 'One step forwards.'
       Top = 44
       Width = 35
       Caption = '>'
-      OnClick = forwards_oneClick
+      OnClick = forwards_one1Click
       ParentShowHint = False
       ShowHint = True
       TabOrder = 7
     end
-    object unit_comboBox: TComboBox
+    object unit_comboBox1: TComboBox
       Left = 113
       Height = 23
       Hint = 'Unit of step size. Draconic Moon, average ecliptic crossing (27.212220 days). Sidereal Moon, average star crossing (27.321661 days). Synodic Moon average cycle (29.530587981 days). '
@@ -101,7 +101,7 @@ object form_animation: Tform_animation
         'Synodic month'
         'Tropical year'
       )
-      OnDropDown = unit_comboBoxDropDown
+      OnDropDown = unit_comboBox1DropDown
       ParentShowHint = False
       ShowHint = True
       Style = csDropDownList
@@ -195,19 +195,19 @@ object form_animation: Tform_animation
       ShowHint = True
       TabOrder = 5
     end
-    object Planetary_tracks: TCheckBox
+    object Planetary_tracks1: TCheckBox
       Left = 2
       Height = 19
       Hint = 'Show planetary tracks.'
       Top = 143
       Width = 106
       Caption = 'Planetary tracks '
-      OnClick = Planetary_tracksClick
+      OnClick = Planetary_tracks1Click
       ParentShowHint = False
       ShowHint = True
       TabOrder = 15
     end
-    object moon_tracks: TCheckBox
+    object moon_tracks1: TCheckBox
       Left = 2
       Height = 19
       Hint = 'Show Moon tracks.'
@@ -218,7 +218,7 @@ object form_animation: Tform_animation
       ShowHint = True
       TabOrder = 16
     end
-    object number_of_steps: TEdit
+    object number_of_steps1: TEdit
       Left = 113
       Height = 23
       Hint = 'Number of animation steps'
@@ -228,7 +228,7 @@ object form_animation: Tform_animation
       TabOrder = 13
       Text = '365'
     end
-    object forwards_many: TButton
+    object forwards_many1: TButton
       Left = 74
       Height = 27
       Hint = 'Continous increase.'
@@ -240,7 +240,7 @@ object form_animation: Tform_animation
       ShowHint = True
       TabOrder = 12
     end
-    object stop_button: TBitBtn
+    object stop_button1: TBitBtn
       Left = 37
       Height = 27
       Hint = 'Click once to stop, second click to return to start position.'
@@ -279,7 +279,7 @@ object form_animation: Tform_animation
       ShowHint = True
       TabOrder = 11
     end
-    object backwards_many: TButton
+    object backwards_many1: TButton
       Left = 0
       Height = 27
       Hint = 'Continous decrease.'
@@ -291,14 +291,14 @@ object form_animation: Tform_animation
       ShowHint = True
       TabOrder = 10
     end
-    object continuous: TCheckBox
+    object continuous1: TCheckBox
       Left = 2
       Height = 19
       Hint = 'Continuous animation loop.'
       Top = 124
       Width = 82
       Caption = 'Continuous'
-      OnClick = Planetary_tracksClick
+      OnClick = Planetary_tracks1Click
       ParentShowHint = False
       ShowHint = True
       TabOrder = 14
@@ -341,7 +341,7 @@ object form_animation: Tform_animation
       ShowHint = True
       TabOrder = 3
     end
-    object followstars: TRadioButton
+    object followstars1: TRadioButton
       Left = 0
       Height = 19
       Hint = 'Diurnal motion off. Stay at same RA&DEC position as time goes by. '
@@ -349,28 +349,28 @@ object form_animation: Tform_animation
       Width = 45
       Caption = 'Stars'
       Checked = True
-      OnClick = followstarsClick
+      OnClick = followstars1Click
       TabOrder = 0
       TabStop = True
     end
-    object Follow_none: TRadioButton
+    object Follow_none1: TRadioButton
       Left = 0
       Height = 19
       Hint = 'No tracking, diurnal motion on.'
       Top = 24
       Width = 52
       Caption = 'None '
-      OnClick = followstarsClick
+      OnClick = followstars1Click
       TabOrder = 1
     end
-    object lock_on_name: TCheckBox
+    object lock_on_name1: TCheckBox
       Left = 0
       Height = 19
       Hint = 'Follow a planetary object as time goes by.'
       Top = 52
       Width = 69
       Caption = 'Planetary'
-      OnClick = lock_on_nameClick
+      OnClick = lock_on_name1Click
       TabOrder = 2
     end
     object sidereal_animationmenu1: TSpeedButton
@@ -486,7 +486,7 @@ object form_animation: Tform_animation
       ParentShowHint = False
     end
   end
-  object close_button: TButton
+  object close_button1: TButton
     Left = 112
     Height = 27
     Hint = 'Closes this window.'
@@ -495,7 +495,7 @@ object form_animation: Tform_animation
     Cancel = True
     Caption = '&Close'
     ModalResult = 8
-    OnClick = close_buttonClick
+    OnClick = close_button1Click
     ParentShowHint = False
     ShowHint = True
     TabOrder = 3
@@ -513,7 +513,7 @@ object form_animation: Tform_animation
     Constraints.MinWidth = 287
     ParentShowHint = False
     TabOrder = 2
-    object eclipsebackwards: TButton
+    object eclipsebackwards1: TButton
       Left = 0
       Height = 27
       Hint = 'Find an eclipse in the past.'
@@ -525,7 +525,7 @@ object form_animation: Tform_animation
       ShowHint = True
       TabOrder = 0
     end
-    object eclipseforwards: TButton
+    object eclipseforwards1: TButton
       Left = 46
       Height = 27
       Hint = 'Find an eclipse in future.'

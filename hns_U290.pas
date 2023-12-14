@@ -10,7 +10,7 @@ uses
   {$ELSE}
   ,windows {for getinputstate}
   {$ENDIF}
-  ;
+  ,math ;{for max function}
 
 //var counts:integer;  {temporary}
 
@@ -186,7 +186,7 @@ type
              dec9: shortint;
              mag0: shortint;
   end;
- hnskyhdr290_A7 = packed record  {Interim like hnskyhdr290_A6 but Gaia Bp_Rp added. Used to create 290-6 later}
+ hnskyhdr290_A7 = packed record  {Interim format like hnskyhdr290_A6 but Gaia Bp_Rp added. Used to create 290-6 later}
              ra7 : byte;
              ra8 : byte;
              ra9 : byte;
@@ -197,7 +197,7 @@ type
   end;
 
 
- hnskyhdr290_6 = packed record  {G16 for storing Rp-Bp}
+ hnskyhdr290_6 = packed record  {For storing blue minus red Bp-Rp. Database V17}
             ra7 : byte; {The RA is stored as a 3 bytes word. The DEC position is stored as a two's complement (=standard), three bytes integer. The resolution of this three byte storage will be for RA: 360*60*60/((256*256*256)-1) = 0.077 arc seconds. For the DEC value it will be: 90*60*60/((128*256*256)-1) = 0.039 arc seconds.}
             ra8 : byte;
             ra9 : byte;
@@ -215,7 +215,7 @@ type
             dec9: shortint;
   end;
 
-  hnskyhdr290_5 = packed record  {Most compact format, used for Gaia}
+  hnskyhdr290_5 = packed record  {Most compact format, used for Gaia databases G17, G18}
               ra7 : byte;
               ra8 : byte;
               ra9 : byte;
@@ -1096,8 +1096,9 @@ begin
            Bp_Rp:=-999;{assume no colour information is available}
 
            required_range:= sqrt(sqr(work_width/(work_height))+1)*1.2/zoom;
-           if required_range<5.95*pi/180 then required_range:=5.95*pi/180;{Longest distance to a corner or center of a tile. Worst place is ra=0, dec 18.8 degrees}
-
+    //       required_range:= sqrt(sqr(work_width/(work_height))+1)*1.5/zoom;
+//           required_range:=max(required_range,6.5*pi/180);{A little more then 12.79/2 degrees due to an angle. Longest distance to a corner or center of a tile. Worst place is near equator e.g. ra=00:48 (a little more then 00:45 = 360/32 degrees), dec 06:24 (12.79/2) degrees}
+           required_range:=max(required_range,6.8*pi/180);{A little more then 12.79/2 degrees due to an angle. Longest distance to a corner or center of a tile. Worst place is near equator e.g. ra=00:48 (a little more then 00:45 = 360/32 degrees), dec 06:24 (12.79/2) degrees}
            while ((area290>1) and (nearbyarea=false)) do
            begin
              dec(area290);
@@ -1109,19 +1110,19 @@ begin
                else
                if sep<required_range+15*pi/180 then {center close enough to check the corners}
                begin {check if area is visible using corner position tile}
-                 ang_sep(telescope_ra,telescope_dec,centers290[area290,3],centers290[area290,5], sep );
+                 ang_sep(telescope_ra,telescope_dec,centers290[area290,3],centers290[area290,5], sep ); //distance center screen to ra_min, dec_max tile
                  if sep<required_range then  nearbyarea:=true
                  else
                  begin {check if area is visible using corner position tile}
-                   ang_sep(telescope_ra,telescope_dec,centers290[area290,4],centers290[area290,5], sep );
+                   ang_sep(telescope_ra,telescope_dec,centers290[area290,4],centers290[area290,5], sep );//distance center screen to ra_max, dec_max tile
                    if sep<required_range then  nearbyarea:=true
                    else
                    begin  {check if area is visible using corner position tile}
-                     ang_sep(telescope_ra,telescope_dec,centers290[area290,3],centers290[area290,6], sep );
+                     ang_sep(telescope_ra,telescope_dec,centers290[area290,3],centers290[area290,6], sep );//distance center screen to ra_min, dec_min tile
                      if sep<required_range then  nearbyarea:=true
                      else
                      begin  {check if area is visible using corner position tile}
-                       ang_sep(telescope_ra,telescope_dec,centers290[area290,4],centers290[area290,6], sep );
+                       ang_sep(telescope_ra,telescope_dec,centers290[area290,4],centers290[area290,6], sep );//distance center screen to ra_max, dec_min tile
                        if sep<required_range then  nearbyarea:=true
                      end;
                    end;

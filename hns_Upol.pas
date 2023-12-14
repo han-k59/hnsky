@@ -80,7 +80,7 @@ begin
   if reallatitude>0 then southF:=1 else southF:=-1;
 
   wtime2:=wtime2actual;{important same}
-  Precession(julian_ET,2451545.0{J2000},0,southf*pi/2,ramean,decmean);{Convert celestial pole to J2000.  long term precession function in hns_Uprs}
+  Precession(julian_ET,2451545.0{J2000},0,southf*pi/2,ramean,decmean);{Convert celestial_mode pole to J2000.  long term precession function in hns_Uprs}
   ra_az(ramean,decmean,reallatitude,0,wtime2, viewx,viewy);   {realaltitude to ignore northup}
 
   RRW:=polarscope.clientrect; {get dimensions window}
@@ -93,7 +93,7 @@ begin
   for dia:=0 to 24 do {plot circle }
   begin
     rax:=dia*(pi/12); decx:=southF*dec_polaris2019;{diameter of circle in polarscope designed for 2019}
-    Precession(julian_ET,2451545.0{J2000},rax,decx,ramean,decmean);{Convert celestial pole to J2000.  long term precession function in hns_Uprs}
+    Precession(julian_ET,2451545.0{J2000},rax,decx,ramean,decmean);{Convert celestial_mode pole to J2000.  long term precession function in hns_Uprs}
     if dia=0 then plot_pixel_sphere(polarscope.canvas,ramean,decmean,-2,$FFFFFF,0,0) {-2 is move action to polaris Jdate}
     else
     plot_pixel_sphere(polarscope.canvas,ramean,decmean,-1,$FFFFFF,0,0); {-1 is line draw action}
@@ -148,9 +148,9 @@ begin
    oldday2:=day2;
    oldhour2:=hour2;
    oldmin2:=min2;
-   oldnorth:=north;
+   oldnorth:=northc;
    oldnortharrow:=northarrow;
-   oldsidereal:=celestial;
+   oldsidereal:=celestial_mode;
    oldgrid:=grid;
    oldwtime2:=wtime2;
    oldwtime2actual:=wtime2actual;
@@ -161,7 +161,7 @@ begin
    fliph:=-1;
    northarrow:=0;
    zoom:=20;
-   celestial:=0;
+   celestial_mode:=0;
    grid:=0;
    image_overlap:=0;
 
@@ -176,7 +176,7 @@ begin
    flipv:=oldflipv;
    fliph:=oldfliph;
    zoom:=oldzoom;
-   north:=oldnorth;
+   northc:=oldnorth;
    grid:=oldgrid;
    wtime2:=oldwtime2;
    wtime2actual:=oldwtime2actual;
@@ -188,7 +188,7 @@ begin
    hour2:=oldhour2;
    min2:=oldmin2;
    northarrow:=oldnortharrow;
-   celestial:=oldsidereal;
+   celestial_mode:=oldsidereal;
    image_overlap:=oldimage_overlap;
    actualtime:=oldactualtime;
 

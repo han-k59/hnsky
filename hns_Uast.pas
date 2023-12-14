@@ -1044,6 +1044,7 @@ begin
   result:=inttostr(trunc(m))+'-' +inttostr(trunc(t));
 end;
 
+
 Function asteroid_magn_comp(g ,b :double):double; {Magnitude change by phase asteroid, New meeus 32.14}
       {g = slope parameter,  b= angle sun-asteroid-earth}
 var b2,q1,q2 :double;
@@ -1229,11 +1230,11 @@ const
 // Converting between galactic to equatorial coordinates
 // The galactic north pole is at RA = 12:51.4, Dec = +27:07 (2000.0),
 // the galactic center at RA = 17:45.6, Dec = -28:56 (2000.0).
-// The inclination of the galactic equator to the celestial equator is thus 62.9°.
+// The inclination of the galactic equator to the celestial_mode equator is thus 62.9°.
 // The intersection, or node line, of the two equators is at
 // RA = 282.25°, Dec = 0:00 (2000.0), and at l = 33°, b=0.
 // The transformation between the equatorial and galactic systems consisted of:
-// 1. a rotation around the celestial polar axis by 282.25°,
+// 1. a rotation around the celestial_mode polar axis by 282.25°,
 // so that the reference zero longitude matches the node
 // 2. a rotation around the node by 62.9°
 // 3. a rotation around the galactic polar axis by 33°
@@ -1265,7 +1266,7 @@ const
 // Converting between galactic to equatorial coordinates
 // The galactic north pole is at RA = 12:51.4, Dec = +27:07 (2000.0),
 // the galactic center at RA = 17:45.6, Dec = -28:56 (2000.0).
-// The inclination of the galactic equator to the celestial equator is thus 62.9°.
+// The inclination of the galactic equator to the celestial_mode equator is thus 62.9°.
 // The intersection, or node line, of the two equators is at
 // RA = 282.25°, Dec = 0:00 (2000.0), and at l = 33°, b=0.
 var
@@ -1286,7 +1287,7 @@ const
 // Converting between galactic to equatorial coordinates
 // The galactic north pole is at RA = 12:51.4, Dec = +27:07 (2000.0),
 // the galactic center at RA = 17:45.6, Dec = -28:56 (2000.0).
-// The inclination of the galactic equator to the celestial equator is thus 62.9°.
+// The inclination of the galactic equator to the celestial_mode equator is thus 62.9°.
 // The intersection, or node line, of the two equators is at
 // RA = 282.25°, Dec = 0:00 (2000.0), and at l = 33°, b=0.
 var
@@ -1654,8 +1655,11 @@ begin
     end;
   if Neg then
     Result := -Result;
-  if (not Valid) or (P^ <> #0) then
-    Code := P-@S+1;
+  try
+    if (not Valid) or (P^ <> #0) then
+      Code := P-@S+1;
+  except
+  end;
 end;
 
 procedure find_inc_ring(ra,dec:double); {find inclination SATURN ring}

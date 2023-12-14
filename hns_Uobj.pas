@@ -296,7 +296,7 @@ begin {updates required after paint}
   try {prevent runtime error if weird .hns is loaded}
     boldtrackbar1.position:=(bold);
     densitytrackbar1.position:=round(density);
-    deepmagtrackbar1.position:=deep;
+    deepmagtrackbar1.position:=deepnr;
     deepskyleveltrackbar1.position:=deepsky_level;
     nametilltrackbar1.position:=naming;
     fitsbright1.position:=dss_brightness;
@@ -449,15 +449,15 @@ end;
 procedure Tobjectmenu.deepmagTrackBar1Change(Sender: TObject);
 var olddeep2 : integer;
 begin
-  olddeep2:=deep;
-  deep:=deepmagTrackBar1.position;
-  if deep>=deepmagTrackBar1.max-2 then deep:=9999 {not 999 since zoom/3 is added}
+  olddeep2:=deepnr;
+  deepnr:=deepmagTrackBar1.position;
+  if deepnr>=deepmagTrackBar1.max-2 then deepnr:=9999 {not 999 since zoom/3 is added}
   else
-  if deep<=deepmagTrackBar1.min+2 then  deep:=-100; {-10 name none deepsky !, switch off function}
-  if deep<naming then begin naming:=deep;nametillTrackBar1.position:=naming;end;
+  if deepnr<=deepmagTrackBar1.min+2 then  deepnr:=-100; {-10 name none deepsky !, switch off function}
+  if deepnr<naming then begin naming:=deepnr;nametillTrackBar1.position:=naming;end;
 
   if objectmenu_painting  then exit;
-  if olddeep2>deep  then missedupdate:=2 else  missedupdate:=1;
+  if olddeep2>deepnr  then missedupdate:=2 else  missedupdate:=1;
   paint_sky;
 end;
 
@@ -471,7 +471,7 @@ begin
   if naming>=nametillTrackBar1.Max-2 then naming:=9999 {not 999 since zoom/3 is added}
   else
   if naming<=nametillTrackBar1.Min+2 then  naming:=-1000; {No names including the sun=-270}
-  if deep<naming then begin deep:=naming;deepmagTrackBar1.position:=deep;end;
+  if deepnr<naming then begin deepnr:=naming;deepmagTrackBar1.position:=deepnr;end;
 
   if objectmenu_painting then exit;{prevent paint_sky}
   if oldnaming2>naming then missedupdate:=2 else missedupdate:=1;

@@ -1,6 +1,6 @@
 unit hns_Userver;
 
-{Copyright (C) 2016,2018 by Han Kleijn, www.hnsky.org
+{Copyright (C) 2016,2023 by Han Kleijn, www.hnsky.org
  email: han.k.. at...hnsky.org
 
 This program is free software: you can redistribute it and/or modify
@@ -123,9 +123,9 @@ begin
   else
   if commd ='GET_TARGET' then
   begin
-//    if mframe<>0 then frame_pa_str:=' '+floattostrF_local(frame_angle*pi/180,0,7) else frame_pa_str:='';
     if orientation2<>999{unknown} then pa:=orientation2*pi/180 {orientation is in degrees} else pa:=pi/2;{orientation is in degrees}
-    result:=floattostrF_local(found_ra2,0,7)+' '+floattostrF_local(found_dec2,0,7)+' '+found_name+' '+floattostrF_local(pa,0,7); {radians}
+    result:=floattostrF_local(found_ra2,0,7)+' '+floattostrF_local(found_dec2,0,7)+' '+found_name+' '+floattostrF_local(pa,0,7){radians}+
+            ' '+floattostrF_local(found_velocity,0,4)+' '+floattostrF_local(found_velocity_pa,0,4);//comets, #13+#10 will be added in TTCPServerThrd.process_incoming;
     exit;
   end
   else
@@ -150,14 +150,14 @@ begin
           'SET_POS RA DEC (field_height) ==> OK'+#13+#10+
           'LOAD_FITS file_name ==> OK'+#13+#10+
           'GET_POS ==> ra dec'+#13+#10+
-          'GET_TARGET ==> ra dec object_name pa'+#13+#10+
-          'GET_FRAMES ==> ra dec object_name pa'+#13+#10+
-          'SEARCH object_name ==> ra dec object_name pa'+#13+#10+
+          'GET_TARGET ==> ra dec object_name pa (v vpa)'+#13+#10+
+          'GET_FRAMES ==> ra dec object_name pa (v vpa)'+#13+#10+
+          'SEARCH object_name ==> ra dec object_name pa (v vpa)'+#13+#10+
           'GET_LOCATION ==> long lat JD'+#13+#10+
           'SHUTDOWN'+#13+#10+
            #13+#10+
           'Unsolicitated info from HNSKY:'+#13+#10+
-          'ra dec object_name pa'+#13+#10;
+          'ra dec object_name pa (v vpa)'+#13+#10;
           exit;
   end
   else

@@ -1,6 +1,6 @@
 ﻿unit hns_indi;
 {Copyright (C) 2017,2022 by Han Kleijn, www.hnsky.org
- email: han.k.. at...hnsky.org
+ email: han.k.. at...hnsky.org}
 
 {This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -35,19 +35,21 @@ type
 
   Tindi = class(TForm)
     connect_indi_server_btn1: TBitBtn;
+    textfilter1: TEdit;
+    Label1: TLabel;
     Memo1: TMemo;
     no_indi_devices_available1: TLabel;
     PageControl1: TPageControl;
     Panel1: TPanel;
-    show_full_indi_communication1: TCheckBox;
-    all_device_communication1: TCheckBox;
+    log_send_communication1: TCheckBox;
+    all_indi_communication1: TCheckBox;
     Splitter1: TSplitter;
     Splitter2: TSplitter;
     telescope_name_select2: TComboBox;
     procedure connect_indi_server_btn1Click(Sender: TObject);
-    procedure all_device_communication1Change(Sender: TObject);
-    procedure FormCreate(Sender: TObject);
-    procedure telescope_name_select2Change(Sender: TObject);
+    procedure all_indi_communication1Change(Sender: TObject);
+    procedure FormShow(Sender: TObject);
+    procedure telescope_name_select2CloseUp(Sender: TObject);
   private
     { private declarations }
     procedure WhatToDo(Sender: TObject);
@@ -61,11 +63,13 @@ procedure update_indi_menu(s:string);
 
 procedure disconnect_from_indi_server; {some house keeping}
 procedure connect_indi_device(device1:string);{connect INDI telescope device}
-procedure INDI_disconnect_device(device1:string);{diconnect INDI telescope device}
+procedure disconnect_indi_device(device1:string);{diconnect INDI telescope device}
 procedure sendmessage2(s:string);{send message to the server}
 
-function extract_level_2(vector, s:string;start1:integer; var name1,label1,status1 : string):integer;{extract  <defSwitch name="DOME_CW" label="Open"> Off </defSwitch>  <defSwitch name="DOME_CCW" label="Close"> Off  </defSwitch> switches }
-function extract_level_1(vector, s:string; var device1,name1,label1,group1,state1,perm1,rule1,message1 : string):integer;{extract '<defSwitchVector device="RollOff Simulator" name="DOME_MOTION" label="Motion" group="Main Control" state="Ok" perm="rw" rule="AtMostOne" timeout="60" timestamp="2016-06-27T10:16:10">    <defSwitch name="DOME_CW" label="Open">Off    </defSwitch>    <defSwitch name="DOME_CCW" label="Close">Off    </defSwitch></defSwitchVector><defSwitch name="DOME_CW" label="Open"> Off </defSwitch>  <defSwitch name="DOME_CCW" label="Close"> Off  </defSwitch> switches' }
+function extract_level_2(vector, s:string;start1:integer; out name1,label1,status1 : string):integer;{extract  <defSwitch name="DOME_CW" label="Open"> Off </defSwitch>  <defSwitch name="DOME_CCW" label="Close"> Off  </defSwitch> switches }
+function extract_level_1(vector, s:string; out device1,name1,label1,group1,state1,perm1,rule1,message1 : string):integer;{extract '<defSwitchVector device="RollOff Simulator" name="DOME_MOTION" label="Motion" group="Main Control" state="Ok" perm="rw" rule="AtMostOne" timeout="60" timestamp="2016-06-27T10:16:10">    <defSwitch name="DOME_CW" label="Open">Off    </defSwitch>    <defSwitch name="DOME_CCW" label="Close">Off    </defSwitch></defSwitchVector><defSwitch name="DOME_CW" label="Open"> Off </defSwitch>  <defSwitch name="DOME_CCW" label="Close"> Off  </defSwitch> switches' }
+procedure free_all_tabs;{remove all tabs and buttons in the bulk way}
+procedure request_indi_properties;{get properties for menu update}
 
 const
     maxtabs=20;
@@ -76,6 +80,7 @@ const
     az_indi_telescope_degrees   : double=0; {for INDI cursor}
     alt_indi_telescope_degrees  : double=0;
     equinox_indi    : double=0;
+    pierWest_indi   : boolean=true;
 
     nr_of_tabs : integer=0;
     nr_of_live_label_components : integer=0;
@@ -89,7 +94,7 @@ const
 
     device_of_interest  : string='';
 
-    all_device_communication: boolean=false;{show communication of all devices}
+    all_indi_communication: boolean=false;{show communication of all devices}
 
 
 
@@ -162,29 +167,61 @@ function clean_name(s:string):shortstring;{remove charactors which cant be used 
     SetLength(Result, Count);
 end;
 
+procedure memo_message(s: string);
+begin
+  if indi=nil then exit;
+  if ((length(indi.textfilter1.caption)<2) or
+      (pos(indi.textfilter1.caption,s)>0)) then
+  begin
+    indi.memo1.lines.add(s);
+    {activate scrolling memo1}
+    indi.memo1.SelStart:=Length(indi.memo1.Lines.Text);
+    indi.memo1.SelLength:=0;
+  end;
+end;
+
 procedure sendmessage2(s:string);{send message to the server}
 begin
   setlength(indi_client_request,min(10,length(indi_client_request)+1));{add maximum 10 messages}
   indi_client_request[length(indi_client_request)-1]:=s;
 
-  if indi.show_full_indi_communication1.checked then indi.memo1.lines.add('HNSKY:'+s);
+  if ((indi<>nil) and ((all_indi_communication) or (indi.log_send_communication1.checked)) ) then
+    memo_message('HNSKY:'+s);
 end;
 
-procedure INDI_disconnect_device(device1:string);{disconnect INDI telescope device}
+
+procedure connect_indi_device(device1:string);
 begin
-  sendmessage2('<newSwitchVector  device="'+device1+'" name="CONNECTION"><oneSwitch name="CONNECT">Off</oneSwitch><oneSwitch name="DISCONNECT">On</oneSwitch> </newSwitchVector>'); {connect to telescope}
-
+  sendmessage2('<newSwitchVector device="'+device1+'"name="CONNECTION"><oneSwitch name="CONNECT">On</oneSwitch></newSwitchVector>'); {connect to telescope}
 end;
+
+
+procedure disconnect_indi_device(device1:string);{disconnect INDI telescope device from server}
+begin
+  sendmessage2('<newSwitchVector device="'+device1+'"name="CONNECTION"><oneSwitch name="CONNECT">Off</oneSwitch><oneSwitch name="DISCONNECT">On</oneSwitch> </newSwitchVector>'); {disconnect telescope from server}
+end;
+
 
 procedure free_all_tabs;{remove all tabs and buttons in the bulk way}
 var  i :integer;
 begin
-  nr_of_tabs :=0;
+  for i:=0 to nr_of_live_label_components-1 do freeandnil(indi_live_label_components[i]); //tcomponent
   nr_of_live_label_components :=0;
+
+  for i:=0 to nr_of_live_bitbtn_components-1 do freeandnil(indi_live_bitbtn_components[i]);//tcomponent
   nr_of_live_bitbtn_components :=0;
-  nr_of_labels :=0;{strings}
+
+  for i:=0 to nr_of_shapes-1 do freeandnil(indi_live_shapes[i]);//tcomponent
   nr_of_shapes :=0;
+
+  for i:=0 to nr_of_edits-1 do freeandnil(indi_edit_components[i]);//tcomponent
   nr_of_edits  :=0;
+
+  for i:=0 to nr_of_tabs-1 do freeandnil(indi_tabs[i]);// ttabsheets
+  nr_of_tabs :=0;
+
+  nr_of_labels :=0; //strings
+
   counter1     :=0; {for making edit names}
   indi.no_indi_devices_available1.visible:=true;{ no devices available, show this one}
 end;
@@ -202,10 +239,6 @@ begin
      settings.FormPaint(nil);{paint for updating connect/disconnect colors }
 end;
 
-procedure connect_indi_device(device1:string);
-begin
-  sendmessage2('<newSwitchVector  device="'+device1+'" name="CONNECTION">  <oneSwitch name="CONNECT">On</oneSwitch> </newSwitchVector>'); {connect to telescope}
-end;
 
 procedure request_indi_properties;{get properties for menu update}
 begin
@@ -218,12 +251,13 @@ begin
    indi_client_on(true);
 end;
 
-procedure Tindi.all_device_communication1Change(Sender: TObject);
+procedure Tindi.all_indi_communication1Change(Sender: TObject);
 begin
-  all_device_communication:=all_device_communication1.checked;
+  all_indi_communication:=all_indi_communication1.checked;
 end;
 
-procedure Tindi.FormCreate(Sender: TObject);
+
+procedure Tindi.FormShow(Sender: TObject);
 begin
   telescope_name_select2.text:=INDI_telescope_name;{is this allowed}
 end;
@@ -267,17 +301,26 @@ begin
 end;
 
 
-procedure Tindi.telescope_name_select2Change(Sender: TObject);
+procedure Tindi.telescope_name_select2CloseUp(Sender: TObject);
 begin
-  free_all_tabs;{destroy all menus, the brute way}
-  telescope_name_select2.items.clear; {remove devices list, allow update}
+  indi_telescope_name:=telescope_name_select2.text;
+  if settings<>nil then
+    settings.telescope_name_select1.text:=indi_telescope_name;
+
+  free_all_tabs;{remove all tabs and buttons in the bulk way}
   request_indi_properties;{ask server for an update and therefore start to rebuild}
+//  indi.connect_indi_server_btn1.visible:=true;
+//  if assigned(settings){form existing} then
+//     settings.FormPaint(nil);{paint for updating connect/disconnect colors }
+
 end;
+
 
 procedure Tindi.WhatToDo(Sender: TObject);{send new switch value to server}
 var
   thehint:string;
 begin
+  if sender=nil then exit;
   thehint:=TControl(Sender).hint;
   if pos('☑',TControl(Sender).caption)>0 then {toggle function stored in caption?}
      thehint:=stringreplace(thehint,'On','Off',[rfreplaceall]);
@@ -287,6 +330,8 @@ begin
     sendmessage2(thehint);{total instruction}
 //  ShowMessage('Sender is: '+ TControl(Sender).Name+',  Hint:'+ TControl(Sender).hint);
 end;
+
+
 procedure Tindi.WhatToDo_number(Sender: TObject); {send new numeric value to server}
 var
    hint1,component_name,value1: string;
@@ -309,8 +354,6 @@ begin
   until komma2=0; {all analog values added}
 
   sendmessage2(hint1);{total instruction}
-//  ShowMessage(hint1);
-
 end;
 
 
@@ -393,8 +436,7 @@ begin
 end;
 
 
-
-function extract_level_2(vector, s:string;start1:integer; var name1,label1,status1 : string):integer;{extract  <defSwitch name="DOME_CW" label="Open"> Off </defSwitch>  <defSwitch name="DOME_CCW" label="Close"> Off  </defSwitch> switches }
+function extract_level_2(vector, s:string;start1:integer; out name1,label1,status1 : string):integer;{extract  <defSwitch name="DOME_CW" label="Open"> Off </defSwitch>  <defSwitch name="DOME_CCW" label="Close"> Off  </defSwitch> switches }
 var
   i,j,k,l,end1,length_vector,end_intermediate : integer;
 begin
@@ -402,9 +444,6 @@ begin
   start1:=posex('<'+vector+' ',s,start1);{defSwitch or oneSwitch with space to deviate from devSwitchVector}
   if start1>0 then
   begin
-
-
-
     length_vector:=length(vector);
     start1:=start1+2+length(vector);{begin search}
     end1:=posex('</'+vector+'>',s,start1); {end search}
@@ -446,7 +485,7 @@ begin
   end;{start>1}
 end;
 
-function extract_level_1(vector, s:string; var device1,name1,label1,group1,state1,perm1,rule1,message1 : string):integer;{extract '<defSwitchVector device="RollOff Simulator" name="DOME_MOTION" label="Motion" group="Main Control" state="Ok" perm="rw" rule="AtMostOne" timeout="60" timestamp="2016-06-27T10:16:10">    <defSwitch name="DOME_CW" label="Open">Off    </defSwitch>    <defSwitch name="DOME_CCW" label="Close">Off    </defSwitch></defSwitchVector><defSwitch name="DOME_CW" label="Open"> Off </defSwitch>  <defSwitch name="DOME_CCW" label="Close"> Off  </defSwitch> switches' }
+function extract_level_1(vector, s:string; out device1,name1,label1,group1,state1,perm1,rule1,message1 : string):integer;{extract '<defSwitchVector device="RollOff Simulator" name="DOME_MOTION" label="Motion" group="Main Control" state="Ok" perm="rw" rule="AtMostOne" timeout="60" timestamp="2016-06-27T10:16:10">    <defSwitch name="DOME_CW" label="Open">Off    </defSwitch>    <defSwitch name="DOME_CCW" label="Close">Off    </defSwitch></defSwitchVector><defSwitch name="DOME_CW" label="Open"> Off </defSwitch>  <defSwitch name="DOME_CCW" label="Close"> Off  </defSwitch> switches' }
 var
   start1,i,j,k,end1 : integer;
 begin
@@ -555,9 +594,10 @@ procedure update_indi_menu(s:string);
 var
   start0,end0,start1,tel,error1,mode                                                                  : integer;
   s2,device1,device_short,name1,name2,label1,status1,component_name,state1,label_main,group1,perm1,
-  time1,message1,rule1  : string;
+  time1,message1,rule1,test  : string;
   x :  double;
 begin
+  if indi_client_connected=false then exit; //stop messages and runtime errors if indi_client is in shutdown process
   mode:=1;
   repeat {until s is fully read}
   {update now switches}
@@ -569,13 +609,12 @@ begin
     message1:='';
     case mode of 1: begin {update switches}
                       start0:=pos('setSwitchVector',s);
-                      if start0<>0 then end0:=extract_level_1('setSwitchVector',s,device1,name1,label_main,group1,state1,perm1,rule1,message1);
+                      if start0<>0 then
+                        end0:=extract_level_1('setSwitchVector',s,device1,name1,label_main,group1,state1,perm1,rule1,message1);
                       if end0<>0 then
-                    //  if ((end0<>0) and (device1=indi.telescope_name_select2.text)) then {useful message of the correct device}
                       begin
-                        if device1=indi.telescope_name_select2.text then {correct device}
+                        if device1=indi_telescope_name then {correct device}
                         begin
-
                           start1:=start0+length('setSwitchVector');{after setSwitchVector}
                           device_short:=stringreplace(device1,' ','',[rfreplaceall]);
                           device_short:=stringreplace(device_short,'-','',[rfreplaceall]);{component names can't contain minus signs}
@@ -587,10 +626,20 @@ begin
                             if start1<> 0 then
                             begin  {update menu}
                               {----------------------------------}
-                              if ((device1=indi_telescope_name) and (name1='CONNECTION') and (name2='CONNECT')) then {connected?}
-                                                                                         indi_telescope_connected:=status1='On';
-                              if ((device1=indi_telescope_name) and (name1='TELESCOPE_PARK') and (name2='PARK')) then {connected?}
-                                                       mainwindow.park1.checked:=status1='On';
+
+                              if device1=indi_telescope_name then
+                              begin
+                                if ((name1='CONNECTION') and (name2='CONNECT')) then {connected?}
+                                begin
+                                  indi_telescope_connected:=status1='On';
+                                  update_telescope_menu(indi_telescope_connected);
+                                end;
+                                if ((name1='TELESCOPE_PARK') and (name2='PARK')) then {parked}
+                                    mainwindow.park1.checked:=status1='On';
+
+                                if ((name1='TELESCOPE_PIER_SIDE')) then {Pier side west or east}
+                                    pierWest_indi:=((name2='PIER_WEST') and (status1='On' {take second name2})); //2023 Not for the buttons but for track solar objects
+                              end;
 
                               component_name:='bs'+device_short+name1+name2;
                               for tel:=0 to nr_of_live_bitbtn_components-1 Do
@@ -627,7 +676,7 @@ begin
                       if start0<>0 then end0:=extract_level_1('setNumberVector',s,device1,name1,label_main,group1,state1,perm1,rule1,message1);
                       if end0<>0 then
                       begin
-                        if device1=indi.telescope_name_select2.text then {correct device}
+                        if device1=indi_telescope_name then {correct device}
                         begin
                           start1:=start0+length('setNumberVector');{after setSwitchVector}
                           device_short:=stringreplace(device1,' ','',[rfreplaceall]);
@@ -652,6 +701,7 @@ begin
 
                                   if name1='EQUATORIAL_EOD_COORD' then equinox_indi:=0; {equinox of date}
                                   if name1='EQUATORIAL_COORD' then  equinox_indi:=2000; {equinox 2000}
+
                                 end;
                               end;  {update position}
                               component_name:='ln'+device_short+name1+name2;
@@ -672,7 +722,7 @@ begin
                        if start0<>0 then  end0:=extract_level_1('setTextVector',s,device1,name1,label_main,group1,state1,perm1,rule1,message1);
                        if end0<>0 then
                        begin
-                         if device1=indi.telescope_name_select2.text then {correct device}
+                         if device1=indi_telescope_name then {correct device}
                          begin
                            start1:=start0+length('setTextVector');{after setSwitchVector}
                            device_short:=stringreplace(device1,' ','',[rfreplaceall]);
@@ -705,7 +755,7 @@ begin
                      if start0<>0 then  end0:=extract_level_1('setLightVector',s,device1,name1,label_main,group1,state1,perm1,rule1,message1);
                      if end0<>0 then
                      begin
-                       if device1=indi.telescope_name_select2.text then {correct device}
+                       if device1=indi_telescope_name then {correct device}
                        begin
                          start1:=start0+length('setLightVector');{after setSwitchVector}
                          device_short:=stringreplace(device1,' ','',[rfreplaceall]);
@@ -736,7 +786,7 @@ begin
                          end0:=extract_message('message',s,start0, device1,time1,message1);
                      if end0<>0 then
                      begin
-                        if ((all_device_communication) or (device1=indi.telescope_name_select2.text))  then {all or the device of interest}
+                        if ((all_indi_communication) or (device1=indi_telescope_name))  then {all or the device of interest}
                          mainwindow.statusbar1.caption:=message1+ '  ('+device1+', '+time1+')';{give status}
                        delete(s,start0,end0-start0); {read, dispose}
                      end;
@@ -748,7 +798,7 @@ begin
                        if start0<>0 then
                            end0:=extract_message('delProperty',s,start0, device1,time1,message1);
                        if end0<>0 then
-                         if device1=indi.telescope_name_select2.text then {correct device}
+                         if device1=indi_telescope_name then {correct device}
                          begin
                            {----------------------------------}
 
@@ -767,12 +817,9 @@ begin
     end;{case}
 
     if message1<>'' then
-      if  ((all_device_communication) or (device1=indi.telescope_name_select2.text))  then {all or the device of interest}
+      if  ((all_indi_communication) or (device1=indi_telescope_name))  then {all or the device of interest}
       begin
-        indi.Memo1.lines.add (message1+'  ('+device1+', '+time1+')');{message from extract_level1}
-         {activate scrolling memo1}
-        indi.memo1.SelStart:=Length(indi.memo1.Lines.Text);
-        indi.memo1.SelLength:=0;
+        memo_message(message1+'  ('+device1+', '+time1+')');{message from extract_level1}
       end;
 
 
@@ -822,6 +869,7 @@ var
       if start1<> 0 then
       begin
         btn := TBitBtn.Create(indi);  {indi form as parent} {create buttons}
+        btn.parent:=indi_tabs[tab_position];
         btn.top := indi_button_top[tab_position];
         btn.Left :=left1;
         btn.height :=25;
@@ -853,12 +901,14 @@ var
       if start1<> 0 then
       begin
         labelx:= Tlabel.Create(indi); {create main label, indi form as the parent}
+        labelx.parent:=indi_tabs[tab_position];
         labelx.top := indi_button_top[tab_position]+5;
         labelx.Left :=left1;
         labelx.autosize:=true;
         labelx.Caption :=label1;
 
         labelx:= Tlabel.Create(indi);  {indi form as parent} {create live data label}
+        labelx.parent:=indi_tabs[tab_position];
         labelx.top := indi_button_top[tab_position]+5;
         labelx.Left :=left1+tabsize   { +tabsize};
         labelx.autosize:=false;{otherwise right justify doesnt work}
@@ -872,6 +922,7 @@ var
         if perm1='rw' then
         begin
           editx:= Tedit.Create(indi);  {indi form as parent} {create main label}
+          editx.parent:=indi_tabs[tab_position];
           editx.top := indi_button_top[tab_position]+5;
           editx.Left :=left1+tabsize+tabsize;
           editx.width :=110;
@@ -885,6 +936,7 @@ var
           if nr_edits=1 then {make only once the set button for both RA, DEC}
           begin
             btn := TBitBtn.Create(indi);  {indi form as parent} {create buttons}
+            btn.parent:=indi_tabs[tab_position];
             btn.top := indi_button_top[tab_position]+5;
             btn.Left :=left1+tabsize+tabsize+tabsize;
             btn.height :=25;
@@ -915,12 +967,14 @@ var
       if start1<> 0 then
       begin
         labelx:= Tlabel.Create(indi);  {indi form as parent} {create main label}
+        labelx.parent:=indi_tabs[tab_position];
         labelx.top := indi_button_top[tab_position]+5;
         labelx.Left :=left1;
         labelx.autosize:=true;
         labelx.Caption :=label1;
 
         labelx:= Tlabel.Create(indi);  {indi form as parent} {create live data label}
+        labelx.parent:=indi_tabs[tab_position];
         labelx.top := indi_button_top[tab_position]+5;
         labelx.Left :=left1+tabsize;
         labelx.autosize:=true;
@@ -932,6 +986,7 @@ var
         if perm1='rw' then
         begin
           editx:= Tedit.Create(indi);  {indi form as parent} {create main label}
+          editx.parent:=indi_tabs[tab_position];
           editx.top := indi_button_top[tab_position]+5;
           editx.Left :=left1+tabsize+tabsize;
           editx.width :=110;
@@ -945,6 +1000,7 @@ var
           if nr_edits=1 then {make only once the set button for both or more values}
           begin
             btn := TBitBtn.Create(indi);  {indi form as parent} {create buttons}
+            btn.parent:=indi_tabs[tab_position];
             btn.top := indi_button_top[tab_position];
             btn.Left :=left1+tabsize+tabsize+tabsize;
             btn.height :=25;
@@ -976,12 +1032,14 @@ var
       if start1<> 0 then
       begin
         labelx:= Tlabel.Create(indi);  {indi form as parent} {create main label}
+        labelx.parent:=indi_tabs[tab_position];
         labelx.top := indi_button_top[tab_position]+5;
         labelx.Left :=left1;
         labelx.autosize:=true;
         labelx.Caption :=label1;
 
         shape1:= Tshape.Create(indi);  {indi form as parent} {create live shape}
+        shape1.parent:=indi_tabs[tab_position];
         shape1.top := indi_button_top[tab_position]+5;
         shape1.Left :=left1+tabsize;;
         shape1.Width:=12;
@@ -1016,31 +1074,28 @@ begin
     case mode of 1: begin
                       start0:=pos('<defSwitchVector',s); {switches}
                       if start0 <>0 then
-                      end0:=extract_level_1('defSwitchVector',s,device1,name1,label_main,group1,state1,perm1,rule1,message1);
+                        end0:=extract_level_1('defSwitchVector',s,device1,name1,label_main,group1,state1,perm1,rule1,message1);
                     end;
                  2: begin
                       start0:=pos('<defNumberVector',s); {numbers}
-                      if start0 <>0 then end0:=extract_level_1('defNumberVector',s,device1,name1,label_main,group1,state1,perm1,rule1,message1);
+                      if start0 <>0 then
+                       end0:=extract_level_1('defNumberVector',s,device1,name1,label_main,group1,state1,perm1,rule1,message1);
                     end;
                  3: begin
                       start0:=pos('<defTextVector',s);  {texts}
-                      if start0 <>0 then  end0:=extract_level_1('defTextVector',s,device1,name1,label_main,group1,state1,perm1,rule1,message1);
+                      if start0 <>0 then
+                        end0:=extract_level_1('defTextVector',s,device1,name1,label_main,group1,state1,perm1,rule1,message1);
                     end;
                  4: begin
                       start0:=pos('<defLightVector',s); {lights}
                       if start0 <>0 then
-                      end0:=extract_level_1('defLightVector',s,device1,name1,label_main,group1,state1,perm1,rule1,message1);
+                       end0:=extract_level_1('defLightVector',s,device1,name1,label_main,group1,state1,perm1,rule1,message1);
                     end;
     end;{case}
 
     if message1<>'' then
-    if  ((all_device_communication) or (device1=indi.telescope_name_select2.text))  then {all or the device of interest}
-    begin
-      indi.Memo1.lines.add (message1);{message from extract_level1}
-      {activate scrolling memo1}
-      indi.memo1.SelStart:=Length(indi.memo1.Lines.Text);
-      indi.memo1.SelLength:=0;
-    end;
+    if  ((all_indi_communication) or (device1=indi_telescope_name))  then {all or the device of interest}
+      memo_message(message1);{message from extract_level1}
 
     if ((start0<>0) and (end0=0)) then
        delete(s,start0,13){missing end marker, remove start}
@@ -1060,10 +1115,21 @@ begin
       s2:=copy(s,start0,end0-start0);
       delete(s,start0,end0-start0); {in S2, delete this part}
 
-      if pos(device1,indi.telescope_name_select2.items.text)=0 then {new device, no doubleringen}
-         indi.telescope_name_select2.items.add(device1);
+      if device1<>indi_telescope_name then {new device, no doubleringen}
+      begin
+        if pos(device1,indi.telescope_name_select2.items.text)=0 then //new device, no doubleringen
+        begin
+          indi.telescope_name_select2.items.add(device1);
+          indi.telescope_name_select2.itemindex:=0;
+          if settings<>nil then
+          begin
+            settings.telescope_name_select1.items.add(device1);//fill both tcombos
+            settings.telescope_name_select1.itemindex:=0;
+          end;
+        end;
+      end;
 
-      if device1=indi.telescope_name_select2.text  then {the device of interest}
+      if device1=indi_telescope_name  then {the device of interest}
       begin
         device_short:=stringreplace(device1,' ','',[rfreplaceall]);
         device_short:=stringreplace(device_short,'-','',[rfreplaceall]);{component names can't contain minus signs}
@@ -1094,6 +1160,7 @@ begin
           start1:=13;{after defSwitchVector}
 
           shape1:= Tshape.Create(indi);  {indi form as parent} {create main label}
+          shape1.parent:=indi_tabs[tab_position];
           shape1.top := indi_button_top[tab_position]+5;
           shape1.Left :=5;
           shape1.Width:=12;
@@ -1110,6 +1177,7 @@ begin
           shape1.brush.color:=clblack;
 
           labelx:= Tlabel.Create(indi);  {indi form as parent} {create main label}
+          labelx.parent:=indi_tabs[tab_position];
           labelx.top := indi_button_top[tab_position]+5;
           labelx.Left :=25;
           labelx.autosize:=false;
@@ -1181,7 +1249,11 @@ begin
         if i>0 then
         begin
           SetLength (FdataReceived, i);
-          RecvBuffer (@FdataReceived[1], i);
+          try
+            RecvBuffer (@FdataReceived[1], i);
+          except
+            break;
+          end;
           if lastError<>0 then break;
           synchronize (@process_incoming);
         end
@@ -1208,10 +1280,12 @@ var
   s                          : string;
   old_status                 : boolean;
 begin
+  if indi_client_connected=false then exit;  //stop messages and runtime errors if indi_client is in shutdown process
   s:= delchars(FdataReceived,#10);
   s:=StringReplace(s, #39, '"',[rfReplaceAll]); {replace single apostrophe by double apostrophe }
 
-  if indi.show_full_indi_communication1.checked then indi.Memo1.lines.add ('SERVER:'+s);
+  if all_indi_communication then
+    memo_message('SERVER:'+s);
   old_status:=indi_telescope_connected;
 
   analyse_indi_message(s); {decode all the XML}
@@ -1244,12 +1318,16 @@ end;
 
 procedure TMyINDITCPClient.connection_lost;
 begin
-  indi_client_connected:=false; //essential to prevent memory leaks later
-    indi_telescope_connected:=false;
+//  indi_client_connected:=false; //essential to prevent memory leaks later
+
+  connect_during_creation:=0; //stop reconnecting
+  indi_telescope_connected:=false;
   update_telescope_menu(false);{update menu}
   canvas_object_message(' INDI <-/  /->',colors[1]);
-  if assigned(settings){form existing} then settings.FormPaint(nil);{paint for updating connect/disconnect colors }
   indi_client_on(false); {disconnect and close indi client}
+  if assigned(settings){form existing} then
+          settings.FormPaint(nil);{paint for updating connect/disconnect colors }
+
 end;
 
 end.

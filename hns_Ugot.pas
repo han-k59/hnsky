@@ -312,7 +312,7 @@ end;
 
 procedure Tmove_to.Northbutton1Click(Sender: TObject);
 begin
-  celestial:=0; {does not work well with north up}
+  celestial_mode:=0; {does not work well with north up}
   zoom:=1;
   viewy:=0.8;
   viewx:=0;
@@ -330,7 +330,7 @@ end;
 
 procedure Tmove_to.Southbutton1Click(Sender: TObject);
 begin
-  celestial:=0; {does not work well with north up}
+  celestial_mode:=0; {does not work well with north up}
   zoom:=1;
   viewy:=0.8;
   viewx:=pi;
@@ -341,7 +341,7 @@ end;
 
 procedure Tmove_to.Westbutton1Click(Sender: TObject);
 begin
-  celestial:=0; {does not work well with north up}
+  celestial_mode:=0; {does not work well with north up}
   zoom:=1;
   viewy:=0.8;
   viewx:=pi*3/2;
@@ -352,7 +352,7 @@ end;
 
 procedure Tmove_to.Eastbutton1Click(Sender: TObject);
 begin
-  celestial:=0; {does not work well with north up}
+  celestial_mode:=0; {does not work well with north up}
   zoom:=1;
   viewy:=0.8;
   viewx:=pi/2;
@@ -363,10 +363,10 @@ end;
 
 procedure Tmove_to.Zenithbutton1Click(Sender: TObject);
 begin
-  celestial:=0; {does not work well with north up}
+  celestial_mode:=0; {does not work well with north up}
   zoom:=0.9/(pi/2);
   viewy:=pi/2;
-  if north=1 then begin viewx:=pi;end
+  if NORTHC=1 then begin viewx:=pi;end
             else  begin viewx:=0; end;
   mainwindow.setfocus;
   missedupdate:=2; {rewrite window}

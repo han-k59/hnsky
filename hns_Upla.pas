@@ -55,7 +55,7 @@ Interface
 
 uses  hns_uDE;{for array_5D}
 
-function comet_velocity: string; {calculate velocity in arcsec/hour, only valid if called after procedure comet, by Han 2017-2-20}
+procedure calculate_comet_velocity; {calculate velocity values of comets or asteroids. Only valid if called after procedure comet, by Han 2017-2-20}
 
 PROCEDURE COMET_tail(length3:double;var RA_tail,DEC_tail:double); {2013, calculate tail end, increase  position with factor length3 from sun,, only valid if called after comet}
 
@@ -99,6 +99,7 @@ var
 const
    sun200_calculated : boolean=false; {sun200 calculated for comets}
    arcsec_hour_string:string='arcsec/hour';
+   arcsec_min_string:string='arcsec/min';
 
 
 //Following for use in hns_Unumint
@@ -152,41 +153,36 @@ USES hns_mercury,
 (* SN: sine function (degrees)                                           *)
 (*-----------------------------------------------------------------------*)
 FUNCTION SN(X:double):double;
-  CONST RAD=0.0174532925199433;
   BEGIN
-    SN:=SIN(X*RAD)
+    SN:=SIN(X*pi/180)
   END;
 (*-----------------------------------------------------------------------*)
 (* CS: cosine function (degrees)                                         *)
 (*-----------------------------------------------------------------------*)
 FUNCTION CS(X:double):double;
-  CONST RAD=0.0174532925199433;
   BEGIN
-    CS:=COS(X*RAD)
+    CS:=COS(X*pi/180)
   END;
 (*-----------------------------------------------------------------------*)
 (* TN: tangent function (degrees)                                        *)
 (*-----------------------------------------------------------------------*)
 FUNCTION TN(X:double):double;
-  CONST RAD=0.0174532925199433;
   VAR XX: double;
   BEGIN
-    XX:=X*RAD; TN:=SIN(XX)/COS(XX);
+    XX:=X*pi/180; TN:=SIN(XX)/COS(XX);
   END;
 (*-----------------------------------------------------------------------*)
 (* ATN: arctangent function (degrees)                                    *)
 (*-----------------------------------------------------------------------*)
 FUNCTION ATN(X:double):double;
-  CONST RAD=0.0174532925199433;
   BEGIN
-    ATN:=ARCTAN(X)/RAD
+    ATN:=ARCTAN(X)*180/pi
   END;
 (*-----------------------------------------------------------------------*)
 (* ATN2: arctangent of y/x for two arguments                             *)
 (*       (correct quadrant; -180 deg <= ATN2 <= +180 deg)                *)
 (*-----------------------------------------------------------------------*)
 FUNCTION ATN2(Y,X:double):double;
-  CONST RAD=0.0174532925199433;
   VAR   AX,AY,PHI: double;
   BEGIN
     IF (X=0.0) AND (Y=0.0)
@@ -195,8 +191,8 @@ FUNCTION ATN2(Y,X:double):double;
         BEGIN
           AX:=ABS(X); AY:=ABS(Y);
           IF (AX>AY)
-            THEN PHI:=ARCTAN(AY/AX)/RAD
-            ELSE PHI:=90.0-ARCTAN(AX/AY)/RAD;
+            THEN PHI:=ARCTAN(AY/AX)*180/pi
+            ELSE PHI:=90.0-ARCTAN(AX/AY)*180/pi;
           IF (X<0.0) THEN PHI:=180.0-PHI;
           IF (Y<0.0) THEN PHI:=-PHI;
           ATN2:=PHI;
@@ -972,26 +968,7 @@ PROCEDURE GAUSVEC(LAN,INC,AOP:double;out PQR:double33); {Springer}
     PQR[2,1]:=+C1*S3+S1*C2*C3; PQR[2,2]:=-S1*S3+C1*C2*C3; PQR[2,3]:=-S2*C3;
     PQR[3,1]:=+S1*S2;          PQR[3,2]:=+C1*S2;          PQR[3,3]:=+C2;
   END;
-
-(*---------------------------------------------------------------------------*)
-{PROCEDURE AUSGABE(IPLAN:INTEGER;L,B,R,RA,DEC,DELTA:double);
-  VAR H,M: INTEGER;
-      S  : double;
-  BEGIN
-{    DMS(L,H,M,S);   WRITE (H:3,M:3,S:5:1);
-    DMS(B,H,M,S);   WRITE (H:4,M:3,S:5:1);
-    IF IPLAN<4 THEN WRITE (R:11:6)
-               ELSE WRITE (R:10:5,' ');}
- {              write(iplan:3,'===');
-    DMS(RA,H,M,S);  WRITE (H:4,M:3,S:6:2);
-    DMS(DEC,H,M,S); WRITE (H:4,M:3,S:5:1);
-{    IF IPLAN<4 THEN WRITE (DELTA:11:6)
-               ELSE WRITE (DELTA:10:5,' ');}
-
-  {  IF IPLAN<>10 THEN write(mag3:2:1,' ');
-    IF IPLAN<>0 THEN write(phase*100:3:1,' ',phi:3:1);
-  END;}
-(*--------------------------------------------------------------------------*)
+(*----------------------------------------------------------------------*)
 
 (*-----------------------------------------------------------------------*)
 (* ORBECL: transformation of coordinates XX,YY referred to the           *)
@@ -1011,7 +988,7 @@ PROCEDURE ORBECL(XX,YY:double;PQR:double33;out X,Y,Z:double);
 (*          hyperbolic orbits                                            *)
 (*-----------------------------------------------------------------------*)
 FUNCTION HYPANOM(MH,ECC:double):double; {Springer}
-  CONST EPS=1E-10; MAXIT=15;
+  CONST EPS=1E-10; MAXIT=20 {15}; //v2022-09-29 changed from 15 to 20 for ECC=1
   VAR   H,F,EXH,SINHH,COSHH: double;
         I                  : INTEGER;
   BEGIN
@@ -1063,19 +1040,22 @@ PROCEDURE HYPERB(T0,T,A,ECC:double;VAR X,Y,VX,VY:double);{Springer}
 (*          (E, MAN in degrees)                                          *)
 (*-----------------------------------------------------------------------*)
 FUNCTION ECCANOM(MAN,ECC:double):double; {Springer}
-  CONST PI=3.141592654; TWOPI=6.283185308; RAD=0.0174532925199433;
-        EPS = 1E-11; MAXIT = 15;
-  VAR M,E,F: double;
-      I    : INTEGER;
+  CONST
+    EPS = 1E-11; MAXIT = 20 {15};//v2022-09-29, changed to 20 for ECC very close to 1
+  VAR
+    M,E,F: extended; //v2022-09-29, changed to extended for ECC very close to 1
+    I    : INTEGER;
   BEGIN
-    M:=MAN/360.0;  M:=TWOPI*(M-TRUNC(M)); IF M<0 THEN M:=M+TWOPI;
-    IF (ECC<0.8) THEN E:=M ELSE E:=PI;
+    M:=MAN/360.0;  M:=2*pi*(M-TRUNC(M)); IF M<0 THEN M:=M+2*pi;
+    IF (ECC<0.8) THEN E:=M ELSE E:=pi;
     F := E - ECC*SIN(E) - M; I:=0;
     WHILE ( (ABS(F)>EPS) AND (I<MAXIT) ) DO
       BEGIN
-        E := E - F / (1.0-ECC*COS(E));  F := E-ECC*SIN(E)-M; I:=I+1;
+        E := E - F / (1.0-ECC*COS(E));
+        F := E-ECC*SIN(E)-M;
+        I:=I+1;
       END;
-    ECCANOM:=E/RAD;
+    ECCANOM:=E*180/pi;
     IF (I=MAXIT) THEN  {writeln(' convergence problems in ECCANOM');}
                         mainwindow.statusbar1.Caption:=(naam2+' convergence problems in ECCANOM');
   END;
@@ -1498,15 +1478,15 @@ var
    A,AS2,PQR :double33; {array[1..3,1..3]}
    {VX,VY,VZ,}fac,t0,delta0 :double;
 BEGIN (* COMET *)
-{ YEAR:=1986;
-{ MONTH:=2;
-{ D:=9.43867;
-{ Q:= 0.5870992;{    ! Perihelion distance q in AU;}
-{ ECC:= 0.9672725;{  ! Eccentricity e}
-{ INC2:= 162.23932;{ ! Inclination i}
-{ LAN:= 58.14397; {  ! Longitude of the ascending node}
-{ AOP:= 111.84658;{  ! Argument of perihelion}
-{ TEQX0:=1950.0;{    ! Equinox for the orbital elements}
+// YEAR:=1986;
+// MONTH:=2;
+// D:=9.43867;
+// Q:= 0.5870992;{    ! Perihelion distance q in AU;}
+// ECC:= 0.9672725;{  ! Eccentricity e}
+// INC2:= 162.23932;{ ! Inclination i}
+// LAN:= 58.14397; {  ! Longitude of the ascending node}
+// AOP:= 111.84658;{  ! Argument of perihelion}
+// TEQX0:=1950.0;{    ! Equinox for the orbital elements}
 
   T:=(julian-2400000.5-51544.5)/36525.0;{calculate time}
 
@@ -1550,7 +1530,7 @@ BEGIN (* COMET *)
 END;
 
 
-function comet_velocity: string; {calculate velocity in arcsec/hour, only valid if called after procedure comet, by Han 2017-2-22}
+procedure calculate_comet_velocity; {calculate velocity in arcsec/hour, only valid if called after procedure comet, by Han 2017-2-22}
 var
   LS,BS,RS,delta2,ra,dec,ra1,dec1,xs2,ys2,zs2,t,x_pln2,y_pln2,z_pln2,x_pln1,y_pln1,z_pln1,delta1,fac: double;
 begin
@@ -1584,8 +1564,16 @@ begin
   POLAR2 (x_pln2,y_pln2,z_pln2 ,DELTA,DEC,RA);{7.214359*0.00578 in 1 light hour is 7.21.. au}
   {-------end future position}
 
-  result:='    να: '+ floattostrF((180*60*60/(pi))*(RA-RA1)*cos(dec1),ffGeneral,4,2)+  {arc sec per hour}
-          ',   νδ: '+ floattostrF((180*60*60/(pi))*(DEC-DEC1),ffGeneral,4,2)+'  '+arcsec_hour_string;
+  found_ra_rate:=(180*60*60/(pi))*(RA-RA1); // RA rotation in seconds of degrees/hour
+  found_velocity_ra:=found_ra_rate*cos(dec1);//arc seconds/hour
+  found_velocity_dec:=(180*60*60/(pi))*(DEC-DEC1);
+  found_velocity_pa:=arctan2(found_velocity_ra,found_velocity_dec);
+  if found_velocity_pa<0 then found_velocity_pa:=found_velocity_pa+(pi*2);
+  found_velocity:=sqrt(sqr(found_velocity_ra)+sqr(found_velocity_dec))/60;// unit "/min
+  found_velocity_str:='    να: '+ floattostrF(found_velocity_ra,ffGeneral,4,2)+  {arc sec per hour}
+                      ',   νδ: '+ floattostrF(found_velocity_dec,ffGeneral,4,2)+'  '+arcsec_hour_string+
+                      ',   ν: '+ floattostrF(found_velocity,ffGeneral,4,2)+'  '+arcsec_min_string+
+                      ',   P.A.: '+ floattostrF(found_velocity_pa*180/pi,ffGeneral,4,2)+'°'
 end;
 
 PROCEDURE COMET_tail(length3:double;var RA_tail,DEC_tail:double); {2013, calculate tail, increase  position with factor length3 from sun,, only valid if called after comet}

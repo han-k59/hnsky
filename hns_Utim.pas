@@ -1,6 +1,6 @@
 unit hns_Utim;
 {Copyright (C) 1997, 2022 by Han Kleijn, www.hnsky.org
- email: han.k.. at...hnsky.org
+ email: han.k.. at...hnsky.org}
 
 {This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -68,6 +68,7 @@ type
     procedure DeltaT_correction2Change(Sender: TObject);
     procedure FormActivate(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: char);
+    procedure FormShow(Sender: TObject);
     procedure ok_button1Click(Sender: TObject);
     procedure monthedit1Change(Sender: TObject);
     procedure dayedit1Change(Sender: TObject);
@@ -233,6 +234,13 @@ begin
   end;
 end;
 
+procedure TSettime.FormShow(Sender: TObject);
+begin
+  {$IFDEF darwin}
+  tabsheet_time1.caption:='📅' ;
+  {$ENDIF}
+end;
+
 procedure TSettime.followtime_toolButton1Click(Sender: TObject);
 begin
   live_update1.checked:=false;
@@ -299,7 +307,7 @@ end;
 procedure TSettime.celestialtoolbutton2Click(Sender: TObject);
 begin
   mainwindow.celestial1Click(nil);
-  celestialtoolbutton2.down:=celestial<>0
+  celestialtoolbutton2.down:=celestial_mode<>0
 end;
 
 procedure TSettime.yearedit1Change(Sender: TObject);

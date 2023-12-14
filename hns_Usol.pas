@@ -122,7 +122,7 @@ begin
   for time:=0 to 49  do    {do from 17:45 till 06:15 hours}
   begin
     julian_day:=julian_calc(year2,month2,day2,18+{17.75+1/8 +} time/4-(timezone+daylight_saving),0,0);
-    wtime3:=fnmodulo((-longitude*pi/180) + siderealtime2000 +(julian_day-2451545 ) * earth_angular_velocity,2*pi); {Local celestial time. In HNSKY the site longitude is negative if east and has to be subtracted from the time}
+    wtime3:=fnmodulo((-longitude*pi/180) + siderealtime2000 +(julian_day-2451545 ) * earth_angular_velocity,2*pi); {Local celestial_mode time. In HNSKY the site longitude is negative if east and has to be subtracted from the time}
     if planetx<=2 then
     begin
       planet(0,0 {equinox date},julian_day,ra2,dec2,mag,length2,delta,phase,phi);{always calculate sun and T=julian in procedure planet. mod 30-12-2000}

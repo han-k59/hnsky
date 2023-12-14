@@ -93,6 +93,7 @@ type
 
     procedure Exit1Click(Sender: TObject);
     procedure findClick1(Sender: TObject);
+    procedure findtext1EditingDone(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: char);
@@ -159,6 +160,7 @@ Const
   Lines_file :string= 'Lines';
   Size_file  :string= 'Size:';
 
+
 function convert_MPCORB_line(txt : string): string;
 
 implementation
@@ -191,6 +193,15 @@ var
   caption_comet,caption_asteroid, caption_sup1,caption_sup2,caption_sup3,caption_sup4,caption_sup5 :string;
   Attr_red, Attr_blue: TtkTokenKind; {for highlighting}
   esc_pressed :boolean;
+
+var
+  xy0:tpoint=(x:1;y:1);//last position editor
+  xy1:tpoint=(x:1;y:1);
+  xy2:tpoint=(x:1;y:1);
+  xy3:tpoint=(x:1;y:1);
+  xy4:tpoint=(x:1;y:1);
+  xy5:tpoint=(x:1;y:1);
+  xy6:tpoint=(x:1;y:1);
 
 
 procedure markerror(red : boolean);
@@ -273,6 +284,12 @@ begin
   replace_routine(false,false);
 end;
 
+procedure Tedit2.findtext1EditingDone(Sender: TObject);
+begin
+  if length(findtext1.text)>0 then
+      findClick1(Sender);
+end;
+
 procedure Tedit2.FormCreate(Sender: TObject);
 begin
   // create highlighter
@@ -312,23 +329,40 @@ begin
   case editfile of 0: begin
                         synedit1.text:= cometstring.text;
                         JPLOrbitalelementsconversion1.Enabled:=true;
+                        synedit1.CaretXY:=xy0;{go to last position}
                       end;
                    1: begin;
                         Numericalintegration1.Enabled:=true;
                         Numericalintegration2.Enabled:=true;
                         JPLOrbitalelementsconversion1.Enabled:=true;
                         synedit1.text:= asteroidstring.text;
+                        synedit1.CaretXY:=xy1;{go to last position}
                        end; {important make in object inspector lines empty otherwise it does not work}
-                   2: synedit1.text:= supplstring1.text; {important make in object inspector lines empty otherwise it does not work}
-                   3: synedit1.text:= supplstring2.text; {important make in object inspector lines empty otherwise it does not work}
-                   4: synedit1.text:= supplstring3.text; {important make in object inspector lines empty otherwise it does not work}
-                   5: synedit1.text:= supplstring4.text; {important make in object inspector lines empty otherwise it does not work}
-                   6: synedit1.text:= supplstring5.text; {important make in object inspector lines empty otherwise it does not work}
-
-                  10: synedit1.text:= foundstring1.text; {important make in object inspector lines empty otherwise it does not work}
+                   2: begin
+                        synedit1.text:= supplstring1.text; {important make in object inspector lines empty otherwise it does not work}
+                        synedit1.CaretXY:=xy2;{go to last position}
+                      end;
+                   3:begin
+                       synedit1.text:= supplstring2.text; {important make in object inspector lines empty otherwise it does not work}
+                       synedit1.CaretXY:=xy3;{go to last position}
+                     end;
+                   4: begin
+                        synedit1.text:= supplstring3.text; {important make in object inspector lines empty otherwise it does not work}
+                        synedit1.CaretXY:=xy4;{go to last position}
+                      end;
+                   5: begin
+                        synedit1.text:= supplstring4.text; {important make in object inspector lines empty otherwise it does not work}
+                        synedit1.CaretXY:=xy5;{go to last position}
+                      end;
+                   6: begin
+                        synedit1.text:= supplstring5.text; {important make in object inspector lines empty otherwise it does not work}
+                        synedit1.CaretXY:=xy6;{go to last position}
+                      end;
+                  10: begin
+                        synedit1.text:= foundstring1.text; {important make in object inspector lines empty otherwise it does not work}
+                      end;
                    end;
                      {synedit1.Lines:=asteroidstring; is too slow }
-
 end;
 
 
@@ -728,34 +762,42 @@ procedure Tedit2.FormDeactivate(Sender: TObject);
 begin
 //  if synedit1.modified then Save1Click(Sender);
 //  synedit1.modified:=false;
-  case editfile of 0:
-    begin
-      cometstring.clear;  {tstrings}
-      cometstring.text:=synedit1.text;{update cometstring with synedit1}
-    end;
+  case editfile of
+    0:
+      begin
+        cometstring.clear;  {tstrings}
+        cometstring.text:=synedit1.text;{update cometstring with synedit1}
+        xy0:=synedit1.CaretXY;//store last position
+      end;
     1:begin
-       asteroidstring.clear;  {tstrings}
-       asteroidstring.text:=synedit1.text;{update cometstring with synedit1}
+        asteroidstring.clear;  {tstrings}
+        asteroidstring.text:=synedit1.text;{update cometstring with synedit1}
+        xy1:=synedit1.CaretXY;//store last position
       end;
     2:begin
         supplstring1.clear;  {tstrings}
         supplstring1.text:=synedit1.text;{update string with synedit1}
+        xy2:=synedit1.CaretXY;//store last position
       end;
     3:begin
         supplstring2.clear;  {tstrings}
         supplstring2.text:=synedit1.text;{update string with synedit1}
+        xy3:=synedit1.CaretXY;//store last position
       end;
     4:begin
         supplstring3.clear;  {tstrings}
         supplstring3.text:=synedit1.text;{update string with synedit1}
+        xy4:=synedit1.CaretXY;//store last position
       end;
     5:begin
         supplstring4.clear;  {tstrings}
         supplstring4.text:=synedit1.text;{update string with synedit1}
+        xy5:=synedit1.CaretXY;//store last position
       end;
     6:begin
         supplstring5.clear;  {tstrings}
         supplstring5.text:=synedit1.text;{update string with synedit1}
+        xy6:=synedit1.CaretXY;//store last position
       end;
     end;
 end;
@@ -1141,11 +1183,12 @@ begin
   updatefrominternet1.enabled:=(editfile<=1);{only for asteroids and comets}
   if language_mode<>0 then load_edit;
 end;
+
 procedure Tedit2.Checksyntax1Click(Sender: TObject);
 var olddeep2: integer;
 begin
-  olddeep2:=deep;
-  deep:=9999; {all}
+  olddeep2:=deepnr;
+  deepnr:=9999; {all}
   mag:=0;
   markerror(false);
   errors[editfile,1]:=0; {allow error finding}
@@ -1165,22 +1208,22 @@ begin
     2:begin {supplement 1}
         supplstring1.clear;  {tstrings}
         supplstring1.text:=synedit1.text;{update string with synedit1}
-        repeat read_supplement('T',1);until mag=999
+        repeat read_supplement('T',1);until mag=999;
       end;
     3:begin {supplement 2}
         supplstring2.clear;  {tstrings}
         supplstring2.text:=synedit1.text;{update string with synedit1}
-        repeat read_supplement('T',2);until mag=999
+        repeat read_supplement('T',2);until mag=999;
       end;
     4:begin
         supplstring3.clear;  {tstrings}
         supplstring3.text:=synedit1.text;{update string with synedit1}
-        repeat read_supplement('T',3);until mag=999
+        repeat read_supplement('T',3);until mag=999;
       end;
     5:begin
         supplstring4.clear;  {tstrings}
         supplstring4.text:=synedit1.text;{update string with synedit1}
-        repeat read_supplement('T',4);until mag=999
+        repeat read_supplement('T',4);until mag=999;
       end;
     6:begin
         supplstring5.clear;  {tstrings}
@@ -1196,7 +1239,7 @@ begin
       application.messagebox(pchar(No_syntax_errors_found),pchar(Check_out),MB_OK)
   else
     markerror(true);
-  deep:=olddeep2;{return value}
+  deepnr:=olddeep2;{return value}
 end;
 
 procedure Tedit2.synedit1Change(Sender: TObject);

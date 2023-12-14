@@ -1,5 +1,5 @@
 unit hns_main;
-{Copyright (C) 1997,2022 by Han Kleijn, www.hnsky.org
+{Copyright (C) 1997,2023 by Han Kleijn, www.hnsky.org
  email: han.k.. at...hnsky.org}
 
 {This program is free software: you can redistribute it and/or modify
@@ -64,7 +64,7 @@ uses
   printers, Types,
   hns_alpaca, {above private alpacadeamon: TMyTCPClient}
   hns_indi, {above private alpacadeamon: TMyINDITCPClient}
-  hns_Userver;{above private serverdeamon: TTCPServerDaemon}
+  hns_Userver, simpleipc;{above private serverdeamon: TTCPServerDaemon}
 
 type
   {Tmainwindow }
@@ -116,11 +116,16 @@ type
     MenuItem2: TMenuItem;
     MenuItem4: TMenuItem;
     angular_distance1: TMenuItem;
+    SimpleIPCServer1: TSimpleIPCServer;
+    tracksolarobject1: TMenuItem;
+    MenuItem7: TMenuItem;
+    TrackRateAsSolarobject1: TMenuItem;
+    no_sidereal_motion1: TMenuItem;
     mouseposition1: TMenuItem;
     File1: TMenuItem;
     Fliphorizontal1: TMenuItem;
     Flipvertical1: TMenuItem;
-    Followsolarobject1: TMenuItem;
+    TrackSolarObjectbySlews1: TMenuItem;
     Foundobjectmarker1: TMenuItem;
     GetDSSimagefrominternet1: TMenuItem;
     get_ESO1: TMenuItem;
@@ -358,8 +363,6 @@ type
     Animation_onoff: TMenuItem;
     PrinterSetupDialog1: TPrinterSetupDialog;
     Zenith1: TMenuItem;
-    procedure boxshape1MouseMove(Sender: TObject; Shift: TShiftState; X,
-      Y: Integer);
     procedure date_and_time1Click(Sender: TObject);
     procedure date_and_time1MouseEnter(Sender: TObject);
     procedure DayF7Click(Sender: TObject);
@@ -396,6 +399,7 @@ type
     procedure export_frames_via_server1Click(Sender: TObject);
     procedure clearvisibledownload1Click(Sender: TObject);
     procedure movelines1Click(Sender: TObject);
+    procedure no_sidereal_motion1Click(Sender: TObject);
     procedure OpenDialog1Close(Sender: TObject);
     {$else} {delphi}
     {$endif}
@@ -421,6 +425,7 @@ type
     procedure telescope_synctomouse1Click(Sender: TObject);
     procedure Timer_delayed_start_serverTimer(Sender: TObject);
     procedure tracking1Click(Sender: TObject);
+    procedure TrackRateAsSolarobject1Click(Sender: TObject);
     procedure Usesystemtime1Click(Sender: TObject);
     procedure Tonight1Click(Sender: TObject);
     procedure Fliphorizontal1click(Sender: TObject);
@@ -498,7 +503,7 @@ type
     procedure Cleardownload1Click(Sender: TObject);
     procedure get_mast1Click(Sender: TObject);
     procedure tracktelescope1Click(Sender: TObject);
-    procedure Followsolarobject1Click(Sender: TObject);
+    procedure TrackSolarObjectbySlews1Click(Sender: TObject);
     procedure celestial1Click(Sender: TObject);
     procedure Polarscopeview1Click(Sender: TObject);
     procedure Deleteonlinecache1Click(Sender: TObject);
@@ -536,6 +541,7 @@ type
       hnskyServer: TTCPServerDaemon;  // keep object so it can be stopped
       alpacaclient: TMyTCPClient;  // keep object so it can be stopped
       indiclient: TMyINDITCPClient;  // keep object so it can be stopped
+
   public
     { Public declarations }
     procedure update_menu;
@@ -625,7 +631,7 @@ procedure textout_right_aligned(dc :tcanvas;x1,y1:integer;text1:string); {write 
 
 procedure export_to_telescope(ra5,dec5 :double); {export position to telescope}
 procedure connect_telescope(Sender: TObject);{connect to telescope driver}
-procedure update_telescope_menu(on1: boolean);
+procedure update_telescope_menu(connected: boolean);
 procedure canvas_object_message(question: string;color1:tcolor); {if nothing is found}
 procedure canvas_field_message;{after screen refresh}
 
@@ -688,11 +694,20 @@ const
   name_ast1      : string[12] ='hns_ast1.ast';
 
   ascom_driver    : widestring ='ASCOM.Simulator.Telescope';
-  Ascom_mount_capability:integer=0; {2= async slew, 1 slew, 0 no slew}
+  ascom_mount_capability:integer=0; {2= async slew, 1 slew, 0 no slew}
+  sideofpier_alpaca : integer=0;// Indicates the pointing state of the mount. 0 = pierEast, 1 = pierWest, -1= pierUnknown
+
 
   INDI_telescope_name  : string ='';
   telescopeTekst : string ='telescope';
+
+  {$ifdef mswindows}
   telescope_interface: string='A'; {A=Ascom or I for INDI}
+  {$else} {unix}
+  telescope_interface: string=' '; {A=Ascom or I for INDI, space for none}
+  {$endif}
+
+
   INDI_server_address : string='localhost';
   INDI_port           : string='7624';
 //  indi_server_connecting  : boolean=false;{server connecting?}
@@ -703,8 +718,9 @@ const
   server_on      : boolean=true;
   server_running : boolean=false; {is server running}
   ascom_telescope_connected:boolean=false;
+  trackingmethod : integer=0;
 
-  timestep       : integer=5; {minute steps before update}
+  timestep       : integer=300; {minute steps before update}
   old_sidereal2  : integer=0;
   magscale       : integer=1;
   northarrow     : integer=1;
@@ -741,9 +757,9 @@ const
   {$ENDIF}
 
   about_message0 :string=
-             'Hallo_Northern_SKY is © 1998, 2022 by Han Kleijn, license GPL3+, www.hnsky.org'+
+             'Hallo_Northern_SKY is © 1998, 2023 by Han Kleijn, license GPL3+, www.hnsky.org'+
      #13+#10+
-     #13+#10+'Version 4.2.6, dated 2022-07-24';
+     #13+#10+'Version 4.2.15f, dated 2023-11-21';
 
   about_message1 :string=
      'Send a message if you like this free program.';
@@ -809,6 +825,9 @@ const
   limitdeepmediumcolor=130; {this one is used to go back to default}
   limit_deep_medium_color   : integer=limitdeepmediumcolor;
   Click_to_copy_string      : string='<=click to copy into clipboard';
+  copy_to_clipboard: string='Copy to clipboard'; //for angular distance measurement
+  close_str: string='Close';//for angular distance measurement
+
   star_colouring: integer=1;
   local_decimalseparator: char='.';
 
@@ -834,7 +853,7 @@ const
   scrollsize =pi/12;
   bold     : integer=0;{variable for stars ticknes}
   naming: integer=90;{deepsky from wich mag*10 do they get names}
-  deep     : integer=100;{how many deepsky is shown}
+  deepnr   : integer=100;{how many deepsky is shown}
   deepsky_level: integer=1; {[1..3]}
   position_deep2: integer=999999999;
   position_deep3: integer=999999999;
@@ -856,8 +875,9 @@ const
 
   flipv    : integer=1;
   fliph    : integer=1;
-  NORTH    : integer=1;
-  celestial : integer=0;
+  NORTHC   : integer=1;
+  celestial_mode : integer=0;
+  no_sidereal_motion: integer=0;
   find_solareclipse: integer=0;
   viewx    : double=pi; {Zenith in equidistant}
   viewy    : double=pi/2;
@@ -880,6 +900,7 @@ const
 
   found       : integer=0;
   telescope_follow_solar: integer=0; {if<>0 then telescope follows solar object}
+  Tracksolarobject: integer=0; {if<>0 then telescope follows solar object}
   equinox     : integer = 2000;
   equinox_telescope  : integer = 0;
   de430_emphemeris:integer=0;{use or not}
@@ -1002,7 +1023,8 @@ const
   celestial_string : string='celestial view';
   terrestrial_string : string='terrestrial view';
   refresh_rate_string : string='refresh rate is';
-  follow_string   :string='Follow';
+  track_by_slews_string   :string='Track by slews';
+  track_smooth_string  :string='Track smooth';
   Meridian_string   :string='Meridian:';
 
   clock        : integer=1;
@@ -1023,7 +1045,7 @@ const
 
   dss_background: integer=0;{dss background and brightness}
   dss_brightness: integer=0;
-  follownaam2   :  string=''; {telescope follows this object}
+  tracknaam   :  string=''; {telescope follows this object}
   locknaam2     :  string=''; {animation, follow this object}
   deepskyhelpnaam2 :  string='begin';{go to the begin deepsky.htm if no found  object has been put in this string}
   cut_position  :  integer=0;{line cut away}
@@ -1072,13 +1094,18 @@ const
 
   found_ra2 : double=0;{for supplement edit, make zero for GET_TARGET requests}
   found_dec2: double=0;
-  found_name: string='none'; {make something for GET_TARGET requests}
+  found_name: string='none'; {make something for GET_TARGET requests prior to a find}
+  found_ra_rate:double=0;//comets & asteroids
+  found_velocity_ra: double=0;//comets & asteroids
+  found_velocity_dec: double=0;//comets & asteroids
+  found_velocity: double=0;//comets & asteroids
+  found_velocity_pa: double=0;//comets & asteroids
+  found_velocity_str:string='none';//comets & asteroids, make something for GET_TARGET requests prior to a find}
 
 type
    image_array = array of array of array of single;
 var
   img_loaded : image_array;  {for plot_fits}
-
   jovian_distance  : array[1..4] of double; {distance jovian moons=(6.0,6.1,6.2,6.3);}
   jovian_moon_sequence : array[1..4] of integer; {sequence of plot =(1,2,3,4);}
 
@@ -1291,7 +1318,7 @@ end;
 procedure selectfont1(dc:tcanvas);
 begin
   dc.font.name:=font_name;
-  dc.font.size:=fontsize1; {fontsize1;}
+  dc.font.size:=fontsize1; {mainwindow.fontsize1:=fontsize1;}
   dc.font.style:=font_style; // [fsUnderline];
   dc.font.charset:=font_charset;
   {$ifdef mswindows}
@@ -1517,7 +1544,7 @@ begin
   today2:=(year3)+'-' +mon+('-')+day+'  '+hou+sep+mi;
   checkleapyear(year2);{for inc/dec time}
 
-  calculate_julian(year2,month2,day2,hour2,min2,sec2);
+  calculate_julian(year2,month2,day2,hour2,min2,sec2);//update wtime2actual
   today2_UTC:=JdToDate(julian_UT);
   Update_theta_phi(julian_et);
   Precession(julian_ET,2451545.0{J2000},0,pi/2,ra_celestial_pole,dec_celestial_pole);{Convert celestial pole to J2000.  long term precession function in hns_Uprs}
@@ -1559,7 +1586,7 @@ begin
                                                                        {- daylight_saving to calc in winter time, gives also hyst.}
 
   JdToDate_integers(julian_UT+ (timezone+daylight_saving)/24 +step2 ,year2,month2,day2,hour2,min2,sec2);{Returns Julian Day}
- // getdatetime(false,false); {recalculate wtime}
+  getdatetime(false,false); {recalculate wtime}
 end;
 
 procedure read_deepsky(searchmode:char);{deepsky database search}
@@ -1592,11 +1619,11 @@ begin
     inc(linepos);
     x:=1; z:=0; y:=0;
 
-    P1 := Pointer(REGEL);
+    P1 := Pointer(regel);
     length_regel:=length(regel);
     repeat
 
-      {fast replacement for y:=posEx(',',regel,y+1); if y=0 then} {last field?}  {y:=length(regel)+1;}   {new fast routine nov 2015, use posEx rather then pos in Delphi}
+      {fast replacement for y:=posEx(',',regel,y+1); if y=0 then} {last field?}  {y:=length(regel)+1;}
       while ((y<length_regel) and (p1^<>',')) do
              begin inc(y); inc(p1,1) end;
       inc(y); inc(p1,1);
@@ -1640,7 +1667,7 @@ begin
                      if fout2<>0 then
                        mag2:=999
                      else
-                       if ((mag2>deep-30/zoom) and (searchmode<>'T')) then
+                       if ((mag2>deepnr-30/zoom) and (searchmode<>'T')) then
                        begin
                          if ((deepsky_level =2) and (linepos<position_deep2)) then linepos:=position_deep2 {go to second section deep sky database}
                          else
@@ -1729,7 +1756,7 @@ begin
        else
        begin
          result:=false;
-         ShowMessage('Error while downloading ' + internetlink);
+         application.messagebox(pchar(error_string+' while downloading: '+#10+#13+#10+#13+internetlink),pchar(error_string),MB_OK);
          if fileExists(namec)=false then ShowMessage('Error file saving:'+namec+#10#13+'Check if path exist!');
        end;
        try
@@ -2417,11 +2444,13 @@ begin
 
       inc(linepos);
     until (fout=0);  {when regel is not ok repeat until regel is ok.   }
+
     try {important compiler setting  "Do not stop on delphi exceptions"}
       comet(sun200_calculated,2000,julian_ET,c_year,c_month,c_d,c_ecc,c_q,c_inc2,c_lan,c_aop,c_teqx0,ra2,dec2,delta,sun_delta);
     except
       mainwindow.statusbar1.caption:=('With comet '+naam2+' floating point problems !');
     end;
+
     mag:=c_g+ ln(delta)*5/ln(10)+ c_k*ln(sun_delta)/ln(10) ;
                             {log(x) = ln(x)/ln(10)}
    {size some practical values : mag 7.5 ==> 15'
@@ -2431,11 +2460,13 @@ begin
                                     10.7      3'
                                     13.0==>   2'
                                     13.5==>   1.5'
-                           see S&W 1-98 seite 66
-                                          }
+                           see S&W 1-98 seite 66}
+    if isNan(mag) then //overload
+              mag:=99999999;
+
     length2:=60*60*power(2.7,-0.3144*mag); {estimated using curve fitting in Excel.}
     if ((objectmenu.neo_only1.checked) and (delta>0.05)) then mag:=99999999;{skip none neo's}
-  until ( ((mag*10<=deep-30/zoom) and (length2>=min_size2))   or (searchmode in ['T','P']));
+  until ( ((mag*10<=deepnr-30/zoom) and (length2>=min_size2))   or (searchmode in ['T','P']));
 end;
 
 procedure read_asteroid(searchmode:char);{asteroid database search}
@@ -2461,7 +2492,7 @@ begin     {read  one line of asteroidstring with enough magnitude}
        if ((linepos=0) and (length(regel)>=3) and (ord(regel[1])>128)) then delete(regel,1,3);{first three charactors should not be ther, bug FPC?}
        if ((update_mag=false) and (length(regel)>=20)) then mag{X}:=(ord(regel[length(regel)-1])-65) + 0.1*(ord(regel[length(regel)])-48) else mag{X}:=0;{up to date magnitude}
          {note mag is expresses in A....Z}
-       skip:=(((mag*10 {X}>deep) and (searchmode<>'T')) or (length(regel)<=20) or (regel[1]=';'));
+       skip:=(((mag*10 {X}>deepnr) and (searchmode<>'T')) or (length(regel)<=20) or (regel[1]=';'));
        if skip then inc(linepos);
      until skip=false;
      x:=1; z:=0; fout:=0;
@@ -2548,7 +2579,7 @@ begin     {read  one line of asteroidstring with enough magnitude}
   end;
   if ((objectmenu.neo_only1.checked) and (delta>0.05)) then mag:=99999999;{skip none neo's}
 
-  until ((mag*10<=deep-30/zoom) or (searchmode in ['T','P']));
+  until ((mag*10<=deepnr-30/zoom) or (searchmode in ['T','P']));
 end;
 
 {Asteroid Ceres(1) Epoch of elements: 1993 01 13.000
@@ -2679,7 +2710,7 @@ begin
                     begin
                       if searchmode<>'T' then {searchmode='L', line edit mode}
                       begin
-                        if ((brightn>0){not a star} and (mag2>deep-30/zoom)) then  {to faint}  fout:=fout or $1000 {skip this deepsky one}
+                        if ((brightn>0){not a star} and (mag2>deepnr-30/zoom)) then  {to faint}  fout:=fout or $1000 {skip this deepsky one}
                         else
                         if ((brightn=0) and (mag2>maxmag)) then {too faint} fout:=fout or $1000 {skip this star}
                         else
@@ -2717,7 +2748,7 @@ begin
                   end;
               12: val(data1,width2,fout2);
               13: begin val(data1,orientation2,fout2);if fout2<>0 then orientation2:=999;{orientation 0 komt ook voor daarom if unknown=empthy equals 999}
-                    if brightn<-100 then{xy info of moons}
+                    if brightn<-400 then{xy info of moons}
                     begin
                       if ((orientation2-julian_et>=0) and (orientation2-julian_et<=1))  then {neptune moon within time window}
                       begin
@@ -2951,7 +2982,7 @@ begin
   mainwindow.image_north1.Picture.Bitmap.Width := mainwindow.image_north1.Width;
   mainwindow.image_north1.Picture.Bitmap.Height := mainwindow.image_north1.Height;
 
-  if celestial<>0 then
+  if celestial_mode<>0 then
     selectobject(mainwindow.image_north1.canvas.handle,pen_green)
   else
     selectobject(mainwindow.image_north1.canvas.handle,pen_arrow2);{color horizon but brighter}
@@ -3325,7 +3356,7 @@ begin
 
   { mode -3=comet, -1=asteroids,  1=suppl1, 3=suppl2,.. 9=suppl5,  11=deepsky, 12,13 ...stars }
 
-  if ((brightn >= 0) or (brightn<-100)) then { <>-99, -98 supplement text label excludingr xy supplement planetary moons}
+  if ((brightn >= 0) or (brightn<-400)) then { <>-99, -98 supplement text label excludingr xy supplement planetary moons}
     report_left.p4 := magn_string;
 
   if mode <= 11
@@ -3453,7 +3484,7 @@ begin
       report_right.p3:='';
     end;
   end;
-  if ((brightn >= 0) or (brightn<-100)) then { <>-99, -98 supplement text label excludingr xy supplement planetary moons}
+  if ((brightn >= 0) or (brightn<-400)) then { <>-99, -98 supplement text label excludingr xy supplement planetary moons}
   begin
     str(mag2 / 10: 6: 1, magn_text);
     report_right.p4 := magn_text;
@@ -3625,14 +3656,9 @@ begin
     if length(naam4) <> 0 then separ2 := ' / '    else separ2 := '';
     if animation_running <> 2 then { 2016 }
     begin
-      if ((mode >= -3) and (mode <= -1) and (form_animation.visible = false))
-      then { comet/astroids give velocity info }
-        bericht9 := comet_velocity
-      else
-        bericht9 := '';
-      bar_hint := bar_hint + bericht9;
+      bar_hint := bar_hint +found_velocity_str;
       mainwindow.statusbar1.caption :=
-        (naam2 + separ1 + naam3 + separ2 + naam4 + '  ' +  convert_Abbreviations(spectr) + '   ' + descrip2 { spectr } + bericht9);
+        (naam2 + separ1 + naam3 + separ2 + naam4 + '  ' +  convert_Abbreviations(spectr) + '   ' + descrip2 { spectr } + {bericht9}found_velocity_str);
     end;
     { graphically to allow large then 135 charactors. Simpletext and graphical are drawn direct. panels[0], panels[1] after finished mainwindow }
   end
@@ -3755,7 +3781,7 @@ end;
 function find_object(dc:tcanvas;searchmode:char):boolean;
 var
    maxmode,i,star_nr               : integer;
-   skip, error_index               : boolean;
+   skip, error_index,follow_allowed  : boolean;
    limitmagn2,sep1,pa              : double;
    s1                 : string;
    starn              : string;
@@ -3766,7 +3792,7 @@ begin
   if searchmode = 'T' then mainwindow.statusbar1.caption :=searching_string+'  ' + goto_str;
   found:=0;
   limitmagn2 := limitmagn; { is later for GSC and UCAC4 adapted if 'T' search }
-  if stars_activated = 0 then  maxmode := 11 { no stars search planets, supplement and deepsky only }
+  if stars_activated = 0 then  maxmode := 11 { no stars, search planets, supplement and deepsky only }
     else if ((searchmode = 'T') and (ord(goto_str[1]) >= 65)) then
   begin { do not search for letters in star database unless known star name }
     maxmode := 11; { till deepsky only }
@@ -3805,6 +3831,10 @@ begin
   brightn:=999;  {required since brigthness -99,-98 is used to filter out magnitude of supplement text labels in magnitude writeinfo routine or for drawing, -1, -2}
                  {so a supplement could in some cases block writing magnitude of a star}
   orientation2:=999; {unknown, for export to server}
+  found_velocity_ra:=0;//comets
+  found_velocity_dec:=0;//comets
+  found_velocity_pa:=0;//comets
+  found_velocity_str:='';//comets
 
   lineposcatalog := 38; { first 47 lines are comments }
 
@@ -3914,13 +3944,13 @@ begin
            -4 : begin skip:=true; {no action after this}
                       type2:='';{for mode'A'}
                       planetnr:=-1;{do not re-calculate for riseset}
-                      if (comets_activated<>0) then begin linepos:=0;type2:=comet_string;descrip2:=Comet_string;inc(mode);{readposition:=0;} errors[0,1]:=0;{FOR ERROR COLOROURING} end else inc(mode,2);{jump to asteroids} end;
+                      if ( ((comets_activated<>0) or (searchmode='T')) and (cometstring<>nil)) then begin linepos:=0;type2:=comet_string;descrip2:=Comet_string;inc(mode);{readposition:=0;} errors[0,1]:=0;{FOR ERROR COLOROURING} end else inc(mode,2);{jump to asteroids} end;
            -3 : begin
                   read_comet(searchmode);
                   if mode=-2 then  skip:=true;;
                 end;
            -2 : begin skip:=true;; {no action after this}
-                      if (asteroids_activated<>0) then begin linepos:=0;type2:=asteroid_string;descrip2:=Asteroid_string; inc(mode);{readposition:=0;} errors[1,1]:=0;{FOR ERROR COLOROURING} end else inc(mode,2);{jump to supplements} end;
+                      if ( ((asteroids_activated<>0) or (searchmode='T')) and (asteroidstring<>nil)) then begin linepos:=0;type2:=asteroid_string;descrip2:=Asteroid_string; inc(mode);{readposition:=0;} errors[1,1]:=0;{FOR ERROR COLOROURING} end else inc(mode,2);{jump to supplements} end;
            -1 : begin {asteroids}
                   read_asteroid(searchmode);
                   if mode=0 then skip:=true; {leave, next time suppl1}
@@ -3932,23 +3962,23 @@ begin
     else
     begin   {mode -3=comet, -1=asteroids,  1=suppl1, 3=suppl2,.. 9=suppl5,  11=deepsky, 12,13 ...stars}
       case mode of
-          0: begin skip:=true; {no action after this} if (suppl1_activated<>0) then
+          0: begin skip:=true; {no action after this} if ((suppl1_activated<>0) or (searchmode='T')) then
                begin inc(mode);linepos:=0; {readposition:=0;} errors[1+1,1]:=0;{FOR ERROR COLOROURING, before skip}worldmap:=pos('WORLD',Uppercase(name_supl1))>0;end
                else inc(mode,2);{jump to second suppl} end; { for suppplement }
           1: read_supplement(searchmode,1); {supplement1 }
-          2: begin skip:=true; {no action after this} if (suppl2_activated<>0) then
+          2: begin skip:=true; {no action after this} if ((suppl2_activated<>0) or (searchmode='T')) then
                 begin inc(mode);linepos:=0; {readposition:=0;} errors[2+1,1]:=0;{FOR ERROR COLOROURING, before skip}worldmap:=pos('WORLD',Uppercase(name_supl2))>0;end
                   else inc(mode,2);{jump to deepsky} end; { for suppplement }
           3: read_supplement(searchmode,2); {supplement2 }
-          4: begin skip:=true; {no action after this} if (suppl3_activated<>0) then
+          4: begin skip:=true; {no action after this} if ((suppl3_activated<>0) or (searchmode='T')) then
                    begin inc(mode);linepos:=0;{ readposition:=0;} errors[3+1,1]:=0;{FOR ERROR COLOROURING, before skip}worldmap:=pos('WORLD',Uppercase(name_supl3))>0;end
                    else inc(mode,2);{jump to deepsky} end; { for suppplement }
           5: read_supplement(searchmode,3); {supplement1 }
-          6: begin skip:=true; {no action after this} if (suppl4_activated<>0) then
+          6: begin skip:=true; {no action after this} if ((suppl4_activated<>0) or (searchmode='T')) then
                    begin inc(mode);linepos:=0; {readposition:=0;} errors[4+1,1]:=0;{FOR ERROR COLOROURING, before skip}worldmap:=pos('WORLD',Uppercase(name_supl4))>0;end
                    else inc(mode,2);{jump to deepsky} end; { for suppplement }
           7: read_supplement(searchmode,4); {supplement1 }
-          8: begin skip:=true; {no action after this} if (suppl5_activated<>0) then
+          8: begin skip:=true; {no action after this} if ((suppl5_activated<>0) or (searchmode='T')) then
                    begin inc(mode);linepos:=0; {readposition:=0;} errors[5+1,1]:=0;{FOR ERROR COLOROURING, before skip}worldmap:=pos('WORLD',Uppercase(name_supl5))>0;end
                    else inc(mode,2);{jump to deepsky} end; { for suppplement }
           9: read_supplement(searchmode,5); {supplement1 }
@@ -3956,8 +3986,10 @@ begin
         10: begin  {deep sky}
                skip:=true; {no action after this}
                descrip2:='';
-               if ((deep_database<>0) or (searchmode='T')) {always text search in standard database}
-                 then begin inc(mode); linepos:=2; {first lines are comments} end
+               if ( ((deep_database<>0) or (searchmode='T')) and (deepstring<>nil)) {always text search in standard database}
+                 then begin
+                        inc(mode); linepos:=2; {first lines are comments}
+                      end
                       else inc(mode,2);{jump to stars} end;
          11: read_deepsky(searchmode); {deepsky}
          12: begin   {Star databases}
@@ -4058,12 +4090,13 @@ begin
             ucac4_info:=ucac4_info+star_class(apass_b_v/1000, apass_error/100)
 
           end; { add UCAC4 info }
+          if ((mode >= -3) and (mode <= -1)) then calculate_comet_velocity;
           write_info(dc{, true});
           { else write info in paint procedure, bar_hint is also here created }
         end;
       end
       else
-      if searchmode = 'A' then
+      if searchmode = 'A' then { area search planetary and deepsky only }
       begin
         ang_sep(ra2,dec2,popupmouse_RA,popupmouse_dec,sep1);
         if SEP1<=sep_height*((1/1.4159)*pi/(180*60)) then
@@ -4072,10 +4105,13 @@ begin
           dec_text:=prepare_dec(dec2);
           str(mag2/10:6:1,magn_text);
           if  ((mode>=-3) and (Mode<=-1)) then {comet/astroids give velocity info}
-          foundstring1.Append(naam2+#9+magn_text+#9+ra_text+#9+dec_text+#9+type2+#9+comet_velocity) {comet/asteroid info }
+          begin
+            calculate_comet_velocity;//calculate comet or asteroid velocity
+            foundstring1.Append(naam2+#9+magn_text+#9+ra_text+#9+dec_text+#9+type2+#9+found_velocity_str); {comet/asteroid info }
+          end
           else
           foundstring1.Append(naam2+#9+magn_text+#9+ra_text+#9+dec_text+#9+spectr);  {info to foundstring1}
-          if type2='P' then
+          if type2='P' then {planetary search}
           begin
             Precession(2451545.0{J2000},julian_ET,ra2,dec2,ra2,dec2);{ long term precession function in hns_Uprs}
             foundstring1.Append('Mean position:'+#9+prepare_ra(ra2)+#9+prepare_dec(dec2));
@@ -4100,8 +4136,9 @@ begin
             (comparetext(goto_str, naam4) = 0)) then
         begin
           found:=2; { menu search found }
+          if ((mode >= -3) and (mode <= -1) and (form_animation.visible = false)) then calculate_comet_velocity;
           if auto_center = false then
-                                         write_info(dc ); { else write info in paint procedure }
+             write_info(dc ); { else write info in paint procedure }
         end;
       end;
     end
@@ -4171,13 +4208,14 @@ begin
     if server_running then {search request via TCP outstanding} // echo to all if TCP
     begin
       if orientation2<>999{unknown} then pa:=orientation2*pi/180 {orientation is in degrees} else pa:=pi/2;{orientation2 is in degrees}
-      server_text_out:=floattostrF_local(found_ra2,0,7)+' ' + floattostrF_local(found_dec2,0,7)+' '+found_name+' '+floattostrF_local(pa,0,7)+#13+#10 {CRLF}; ;{send object info in radians}
+      server_text_out:=floattostrF_local(found_ra2,0,7)+' ' + floattostrF_local(found_dec2,0,7)+' '+found_name+' '+floattostrF_local(pa,0,7)+{send object info in radians}
+                        ' '+floattostrF_local(found_velocity,0,4)+' '+floattostrF_local(found_velocity_pa,0,4)+#13+#10 {CRLF};//comets
     end;
     {$ELSE} {delphi}
     {$ENDIF}
   end
   else
-  if searchmode<>'A' then {don't show ???? for internal search}
+  if searchmode<>'A' then {don't show ???? for the internal search}
   begin
     found_name := ''; { for line draw }
     if mainwindow.Objectinfotoclipboard1.checked then  Clipboard.AsText:='????'+#10;
@@ -4191,15 +4229,23 @@ begin
   end
   else mainwindow.image1.cursor:=crdefault;{show default cursor in Linux while internal search report window is open}
 
-  if (mode < 0) { solar }
+  if mode < 0{solar }
   then { 2015 update lock and follow names, both in 'M' search or 'T' search }
   begin
-    if (mainwindow.Followsolarobject1.checked = false)  then { only update name when menu option is not checked }
+    follow_allowed:=((actualtime = true) and (mainwindow.connect_telescope1.checked = true)); { allow following with mount}
+
+    if ((mode < -25) or (mode > -22)) { not moons jupiter IO<>I } then tracknaam := naam2 { store tracknaam solar to keep centered }
+    else  tracknaam := naam3; { store tracknaam solar to keep centered }
+
+    if ((tracknaam<>'') and (mainwindow.TrackSolarObjectbySlews1.checked = false))  then { only update name when menu option is not checked }
     begin { follow solar object with telescope }
-      mainwindow.Followsolarobject1.Caption := follow_string + ' ' +  naam2; { 2015 }
-      if ((mode < -25) or (mode > -22)) { not moons jupiter IO<>I } then follownaam2 := naam2 { store follownaam2 solar to keep centered }
-      else  follownaam2 := naam3; { store follownaam2 solar to keep centered }
-      mainwindow.Followsolarobject1.enabled :=((mainwindow.connect_telescope1.checked = true) and (actualtime = true)); { enable is connected }
+      mainwindow.TrackSolarObjectbySlews1.Caption :=track_by_slews_string + ' ' +  tracknaam; { 2015 }
+      mainwindow.TrackSolarObjectbySlews1.enabled :=follow_allowed; { enable is connected }
+    end;
+    if ((mode>=-5) and (mainwindow.TrackRateAsSolarobject1.checked = false))  then {track comets and asteroids}
+    begin { follow solar object with telescope }
+      mainwindow.TrackRateAsSolarobject1.caption :=track_smooth_string+' ' + tracknaam; { 2023};
+      mainwindow.TrackRateAsSolarobject1.enabled :=follow_allowed;;
     end;
 
     if searchmode <> 'P'
@@ -4209,7 +4255,7 @@ begin
       else  form_animation.planetary_combobox.items.add(naam3);   { 2015-12 add  to follow list }
       if form_animation.planetary_combobox.items.count > 10 then  form_animation.planetary_combobox.items.delete(0);{ do not allow more then 10 }
       form_animation.planetary_combobox.ItemIndex := form_animation.planetary_combobox.ItemIndex + 1; { show selected object }
-      if form_animation.lock_on_name.checked then locknaam2:=form_animation.planetary_combobox.text;
+      if form_animation.lock_on_name1.checked then locknaam2:=form_animation.planetary_combobox.text;
     end;
   end;
 end;
@@ -4677,9 +4723,10 @@ begin
   lineto(mainwindow.image_clock1.canvas.handle,round(clock_size/2)-min_X,round(clock_size/2)-min_Y);
 end;
 
+
 procedure PLOT_info(dc2:tcanvas);
 var
-  tel,i                      :integer;
+  tel                        : integer;
   ss_string                  : string;
   width,height               : String[8];
   xxx,yyy, alt9,az9          : double;
@@ -4728,15 +4775,14 @@ begin
  if ((flipv=-1) and  (fliph=-1)) then report_azalt.flipped:='H V';
 
   drive_status:='';
-  if ((form_animation.Lock_on_name.Checked) and (locknaam2<>''))  then drive_status:='    '+tracking_string+' '+locknaam2
+  if ((form_animation.Lock_on_name1.Checked) and (locknaam2<>''))  then drive_status:='    '+tracking_string+' '+locknaam2
   else
   begin
-    if celestial<>0 then drive_status:='    '+celestial_string
+    if celestial_mode<>0 then drive_status:='    '+celestial_string
     else
     drive_status:='    '+terrestrial_string;
   end;
-  if timestep<>0 then i:=timestep*60 else i:=1;
-  if  actualtime=true then  drive_status:=drive_status+'    '+refresh_rate_string+' '+inttostr(i);
+  if  actualtime=true then  drive_status:=drive_status+'    '+refresh_rate_string+' '+inttostr(timestep)+'s';
 
   if ((found>0) and (animation_running=0)) then
   begin
@@ -4811,7 +4857,7 @@ begin
   selectobject(dc1.handle,pen11);
   above:=true;
 
-  if celestial=1 then
+  if celestial_mode=1 then
   begin
     if flipv<0 then begin direct:='S'; direct2:='N'; end else begin direct:='N';direct2:='S';end;
     if middle_x>image_overlap+mainwindow.toolbar2.width+font_width2 then tel:=1 else tel:=line0_y;
@@ -5778,15 +5824,15 @@ begin {plotfits}
 
   if ((dss_bandpass<>18) and (dss_bandpass<>7)) then {not blue}
   begin {DSS red}
-    if colors[30] and $FF0000>0 then Bcolor:=$FF else Bcolor:=0;
-    if colors[30] and $00FF00>0 then Gcolor:=$FF else Gcolor:=0;
-    if colors[30] and $0000FF>0 then Rcolor:=$FF else Rcolor:=0;
+    if getBvalue(colors[30])>0 then Bcolor:=$FF else Bcolor:=0;
+    if getGvalue(colors[30])>0 then Gcolor:=$FF else Gcolor:=0;
+    if getRvalue(colors[30])>0 then Rcolor:=$FF else Rcolor:=0;
   end
   else
   begin
-    if colors[41] and $FF0000>0 then Bcolor:=$FF else Bcolor:=0;
-    if colors[41] and $00FF00>0 then Gcolor:=$FF else Gcolor:=0;
-    if colors[41] and $0000FF>0 then Rcolor:=$FF else Rcolor:=0;
+    if getBvalue(colors[41])>0 then Bcolor:=$FF else Bcolor:=0;
+    if getGvalue(colors[41])>0 then Gcolor:=$FF else Gcolor:=0;
+    if getRvalue(colors[41])>0 then Rcolor:=$FF else Rcolor:=0;
   end;
 
   back_Bcolor:=getBvalue(colors[0]); {background separat colors}
@@ -6254,6 +6300,95 @@ Begin
           end;
 End;
 
+
+procedure set_telescope_movement_rates(ra_rate {rotation in seconds of degrees/hour},vdec_rate {"/hour}: double);
+var
+  rate0,rate1 : double;
+  s0,s1 : string;
+  p :integer;
+const
+  siderealrate=360.98564736629*3600/(24*60*60); {15.041...}
+begin
+  if (mainwindow.connect_telescope1.Checked)=false then exit;
+
+  mainwindow.statusbar1.caption:='Mount motion: '+found_velocity_str;
+
+  rate0:= ra_rate/3600;//ra rotation rate not velocity so without cos() correction, 1 ra_sec/s RA rate is not required}
+  rate1:= vdec_rate/3600; {from "/hour to  "/sec}
+
+  if telescope_interface='I' then {export to INDI}
+  begin
+    str(siderealrate-rate0:0:12,s0);//[ra "/sec]
+    case trackingmethod of 0:if pierWest_indi=true{east} then rate1:=-rate1;
+                           2:if pierWest_indi=false {west} then rate1:=-rate1;
+                        end; //case
+
+    str(rate1:0:12,s1);//[dec "/sec]
+    sendmessage2('<newSwitchVector device="'+INDI_telescope_name+'" name="TELESCOPE_TRACK_MODE"><oneSwitch name="TRACK_CUSTOM">On</oneSwitch></newSwitchVector>');
+    sendmessage2('<newNumberVector device="'+INDI_telescope_name+'" name="TELESCOPE_TRACK_RATE"><oneNumber name="TRACK_RATE_RA">'+s0+'</oneNumber><oneNumber name="TRACK_RATE_DE">'+s1+'</oneNumber></newNumberVector>');
+  end;
+  {$ifdef mswindows}
+  if telescope_interface='A' then
+  begin
+    if ascom_mount.connected then
+    begin
+      try
+        case trackingmethod of 0,3:if ascom_mount.sideofpier=1 then rate1:=-rate1;//looking east, inverse declination, 0 = pierEast(pointing west), 1 = pierWest(pointing east), -1= pierUnknown          //altaz mount is always 0
+                               2,5:if ascom_mount.sideofpier=0 then rate1:=-rate1;//looking west, inverse declination, 0 = pierEast(pointing west), 1 = pierWest(pointing east), -1= pierUnknown          //altaz mount is always 0
+                            end; //case
+        if trackingmethod<=2 then //adjust tracking rate
+        begin
+          ascom_mount.RightAscensionRate:=rate0*(24/360)/0.9972695677;//ra [ra seconds/sec.] Note 23:56/24:00 hours=0.9972
+          //The units of this property are seconds of right ascension per sidereal second. Please note that for historic reasons the units of the DeclinationRate property are arcseconds per SI second.
+          //To convert a given rate in (the more common) units of sidereal seconds per UTC (clock) second, multiply the value by 0.9972695677 (the number of UTC seconds in a sidereal second) then set the property
+          ascom_mount.DeclinationRate:=rate1;//declination
+        end
+        else
+        begin // method moveaxis
+          ascom_mount.moveAxis(0,(siderealrate-rate0)/3600);//ra [deg/sec]
+          ascom_mount.moveAxis(1,rate1/3600);//declination [deg/sec]
+        end;
+      except
+         on E: Exception do
+         begin
+           beep;
+           application.messagebox(pchar(E.Message),'ASCOM returns following error:',MB_ICONWARNING+MB_OK); {show error from driver error, for example below horizon}
+         end;
+      end;
+    end;
+    exit;
+  end; {ascom}
+  {$else} {unix}
+  {$endif}
+  if telescope_interface='C' then {alpaca, connect if required}
+  begin
+    alpaca_get_sideofpier; //request side of pier. Will be returned later as sideofpier_alpaca, 0 = pierEast, 1 = pierWest, -1= pierUnknown
+
+    case trackingmethod of 0,3:if sideofpier_alpaca=1 then rate1:=-rate1;//looking east, inverse declination, 0 = pierEast(pointing west), 1 = pierWest(pointing east), -1= pierUnknown          //altaz mount is always 0
+                           2,5:if sideofpier_alpaca=0 then rate1:=-rate1;//looking west, inverse declination, 0 = pierEast(pointing west), 1 = pierWest(pointing east), -1= pierUnknown          //altaz mount is always 0
+                        end;//case
+
+
+    if trackingmethod<=2 then //adjust tracking rate
+    begin
+      str(rate0*(24/360):0:12,s0); //RA, [ra_sec/sec]
+      str(rate1:0:12,s1); //DEC ["/sec]
+      alpaca_send_http_put('rightascensionrate','RightAscensionRate='+s0+'&ClientID=7&ClientTransactionID=990');
+      alpaca_send_http_put('declinationrate','DeclinationRate='+s1+'&ClientID=7&ClientTransactionID=991');
+    end
+    else
+    begin //move axis method
+      str((-rate0+15.04106717867020393)/3600:0:12,s0); //RA, [deg/sec] add sidereal motion
+      str(rate1/3600:0:12,s1); //DEC [deg/sec]
+      alpaca_send_http_put('moveaxis','Axis=0&Rate='+s0+'&ClientID=7&ClientTransactionID=990');
+      alpaca_send_http_put('moveaxis','Axis=1&Rate='+s1+'&ClientID=7&ClientTransactionID=991');
+      //    curl -X PUT "https://virtserver.swaggerhub.com/ASCOMInitiative/api/v1/telescope/0/rightascensionrate" -H  "accept: application/json" -H  "Content-Type: application/x-www-form-urlencoded" -d "ClientID=&ClientTransactionID=&RightAscensionRate=123"
+    end;
+    exit;
+  end;
+end;
+
+
 procedure plot_PLANETS2(moon : boolean ;    dc : tcanvas);
   {if moon is false plot planets else The Moon. This to allow comet/asteroid plotting first}
 
@@ -6428,8 +6563,10 @@ begin
 
       end;
 
-      {export find position to ASCOM telescope to follownaam2}
-      if ((telescope_follow_solar=1) and  (comparetext(follownaam2,naam2)=0)) then export_to_telescope(ra2,dec2);
+      {export find position to ASCOM telescope to tracknaam}
+      if ((telescope_follow_solar=1) and  (comparetext(tracknaam,naam2)=0)) then export_to_telescope(ra2,dec2);
+
+
 
       mag2:=trunc(10*mag);
       length2:=length2*(10/60);{unit in min*10}
@@ -6570,6 +6707,7 @@ begin
   //readposition:=0;
   errors[0,1]:=0;{FOR ERROR COLOROURING}
   mode:=-5;
+  name_all:=((comets_activated=2) and (naming>-99999));{name all in mode 2 but not when animation makes tracks, see plot_solartracks(canvas2:tcanvas);}
   repeat
     begin
     newtime:=gettickcount64;
@@ -6591,9 +6729,14 @@ begin
           plot_pixel_sphere(dc,ra2,dec2,dia,0,contour_only,hints); {plot open circel}
         if ((zc>0) and ((name_all) or (mag2<=naming-30/zoom)) and (length(naam2)<>0))then
                                                                               dc.TextOut(x9+5, y9-font_height1,naam2);
-
-        {export find position to ASCOM telescope to follownaam2}
-        if ((telescope_follow_solar=1) and  (comparetext(follownaam2,naam2)=0)) then export_to_telescope(ra2,dec2);
+         {export find position to ASCOM telescope to tracknaam}
+        if ((telescope_follow_solar=1) and  (comparetext(tracknaam,naam2)=0)) then export_to_telescope(ra2,dec2);
+        if ((Tracksolarobject=1) and  (comparetext(tracknaam,naam2)=0)) then
+        begin
+          calculate_comet_velocity;
+          set_telescope_movement_rates(found_ra_rate,found_velocity_dec {"/hour});
+//          mainwindow.statusbar1.caption:='Mount motion α: '+floattostr(rate0*3600*cos(dec2))
+        end;
 
         plot_pixel_sphere(dc,ra2,dec2,-2,0,0,0);{move to for drawing tail}
         COMET_tail(1+length2/12000,RA2,DEC2);{calculate tails end, factor 1+length2/1200 further away from sun}
@@ -6625,6 +6768,7 @@ begin
   linepos:=0;
 //  readposition:=0;
   errors[1,1]:=0; {FOR ERROR COLOROURING}
+  name_all:=((asteroids_activated=2) and (naming>-99999));{name all in mode 2 but not when animation makes tracks, see plot_solartracks(canvas2:tcanvas);}
   mode:=-3;
   repeat
     begin
@@ -6648,8 +6792,14 @@ begin
         if ((zc>0) and ((name_all) or (mag2<=(naming+50)-30/zoom)) and (length(naam2)<>0)) then {the +50 is because asteroids are smaller and have therefore have a greater brightness}
                                                               dc.TextOut(x9+5, y9-font_height1,naam2);
 
-        {export find position to ASCOM telescope to follownaam2}
-        if ((telescope_follow_solar=1) and  (comparetext(follownaam2,naam2)=0)) then export_to_telescope(ra2,dec2);
+        {export find position to ASCOM telescope to tracknaam}
+        if ((telescope_follow_solar=1) and  (comparetext(tracknaam,naam2)=0)) then export_to_telescope(ra2,dec2);
+        if ((Tracksolarobject=1) and  (comparetext(tracknaam,naam2)=0)) then
+        begin
+          calculate_comet_velocity;
+          set_telescope_movement_rates(found_ra_rate,found_velocity_dec {"/hour});
+        end;
+
       end;{mode=-3}
     end;
   until mode>=-2;
@@ -6668,6 +6818,7 @@ begin
   else
     mainwindow.statusbar1.caption:=('Astrometrical solution missing in '+ filen);{error message to canvas}
 end;
+
 procedure get_fits(canvas2:tcanvas;searchstr: string);
 var
   SearchRec: TSearchRec;
@@ -6677,7 +6828,7 @@ var
   red,blue, ir, unknown : boolean;
 begin
   if DirectoryExists(dss_path)=false then  {error  directory wrong}
-     canvas_error_message(dss_path+'  '+not_found);{error message to canvas}
+     canvas_error_message('FITS path: '+dss_path+'  '+not_found);{error message to canvas}
 
 //  supplstring2.Append(inttostr(gettickcount64)+'  '+'STARTING PLOTFITS: '+ floattostr(viewx*180/pi)+#39+' '+floattostr(viewy*180/pi) );
 
@@ -6717,7 +6868,6 @@ begin
     Findclose(SearchRec);
   end;
 //  supplstring2.Append(inttostr(gettickcount64)+'  ''END PLOTFITS: '+ floattostr(viewx*180/pi)+#39+' '+floattostr(viewy*180/pi) );
-
 end;
 
 procedure max_star_magnitude; {overhauled in 2015}
@@ -6736,19 +6886,20 @@ begin
   boldfactor:=round(maxmag-65);
   abbreviation:=uppercase(copy(name_star,1,3));{uppercase to be sure for old defaults.hns}
 
-  if stardatabase_displayed=0 then begin if boldfactor>=100-65 then boldfactor:=100-65;end {up to mag 10 vissible with default glider position. arrange weakest stars are within range 65-55 for color $444444}
+  if stardatabase_displayed=0 then begin if boldfactor>=100-65 then boldfactor:=100-65;end {SAO, PPM up to mag 10 vissible with default glider position. arrange weakest stars are within range 65-55 for color $444444}
   else
-  if ((abbreviation='G18') and (stardatabase_displayed=290)) then begin if boldfactor>=180-65 then boldfactor:=180-65;end {290 up to mag 18.0 vissible with default glider position.}
-  else
-  if ((abbreviation='G17') and (stardatabase_displayed=290)) then begin if boldfactor>=170-65 then boldfactor:=180-65;end {290 up to mag 17.0 vissible with default glider position.}
-  else
-  if ((abbreviation='G16') and (stardatabase_displayed=290)) then begin if boldfactor>=160-65 then boldfactor:=180-65;end {290 up to mag 16.0 vissible with default glider position.}
-  else
-  if ((abbreviation='G15') and (stardatabase_displayed=290)) then begin if boldfactor>=150-65 then boldfactor:=180-65;end {290 up to mag 15.0 vissible with default glider position.}
-  else
-  if ((abbreviation='TUC' ) and (stardatabase_displayed=290)) then begin if boldfactor>=150-65 then boldfactor:=150-65;end {TYCHO/UCAC4 290 up to mag 15.0 vissible with default glider position.}
-  else
-  if stardatabase_displayed=290 then begin if boldfactor>=125-65 then boldfactor:=125-65;end {up to mag 12.5 vissible with default glider position.}
+  if stardatabase_displayed=290 then
+  begin
+    if abbreviation='G18' then begin if boldfactor>=180-65 then boldfactor:=180-65;end {290 up to mag 18.0 vissible with default glider position.}
+    else
+    if ((abbreviation='G17') or (abbreviation='V17')) then begin if boldfactor>=170-65 then boldfactor:=180-65;end {290 up to mag 17.0 vissible with default glider position.}
+    else
+    if ((abbreviation='G16') or (abbreviation='V16')) then begin if boldfactor>=160-65 then boldfactor:=180-65;end {290 up to mag 16.0 vissible with default glider position.}
+    else
+    if abbreviation='TUC' then begin if boldfactor>=150-65 then boldfactor:=150-65;end {TYCHO/UCAC4 290 up to mag 15.0 vissible with default glider position.}
+    else
+    begin if boldfactor>=125-65 then boldfactor:=125-65;end {Tycho up to mag 12.5 vissible with default glider position.}
+  end
   else
   if stardatabase_displayed=3 then begin if boldfactor>=200-65 then boldfactor:=200-65;end {NOMAD, up to mag 20 vissible with default glider position.}
   else
@@ -6782,12 +6933,14 @@ begin
     end;
 end;
 
+
+
 //  Var
 //    startTick  : DWord;
 //    deltaticks : DWord;
 Procedure PLOT_supplement(dc:tcanvas;sup:integer);
 var
-  dia,mag3,contour_only2,hints2,brightn_old,mag2_old : integer;
+  dia,mag3,contour_only2,hints2,brightn_old,mag2_old  : integer;
   open_cluster   :boolean;
   all_frames : string;
 begin
@@ -6883,7 +7036,7 @@ begin
        if ((zc>0) and (namest<>0)) then dc.TextOut(x9+5, y9-font_height1,naam2);
     end  {stars}
     else
-    if brightn<-100 then{xy info of moons}
+    if brightn<-400 then{xy info of moons}
     begin
       plot_pixel_sphere(dc,ra2,dec2,0,colors[34],0,hints);  {moon color}
       if ((length(naam2)<>0) and (mag2<=naming-30/zoom) and (zc>0))then
@@ -6932,7 +7085,7 @@ begin
        end;{plot houses}
        if brightn=-99 then hints2:=0 {no hints, RA/DEC  label mode}
        else
-       if brightn<=-98 then brightn:=-99; {hints on, , RA/DEC  label mode. -99 is only calculate x9,y9 position for label}
+       if brightn<=-98 then  brightn:=-99; {hints on, , RA/DEC  label mode. -99 is only calculate x9,y9 position for label}
 
        mag2_old:=mag2;
        mag2:=-999;{suppress magnitude in hints of houses, lines, frames}
@@ -6955,7 +7108,7 @@ begin
        selectfont3(dc); {no underline}
 
 
-       if ((zc>0) and ((namest<>0) or (brightn<=-98) or (label_all_lines) or (mag2_old<=-20) {az/alt labels})  ) then
+       if ((zc>0) and ((namest<>0) or (brightn=-99) or (label_all_lines) or (mag2_old<=-20) {az/alt labels})  ) then
        begin
          if mag2_old=-20 then setTextColor(dc.handle,colors[16 ]){color text horizon}
          else
@@ -6969,7 +7122,8 @@ begin
          else
          if mag2_old=-25 then setTextColor(dc.handle,colors[28]){color text cross hair}
          else
-         setTextColor(dc.handle,colors[26 ]);{constellation text label  color}
+           setTextColor(dc.handle,colors[26 ]); {constellation text label  color}
+
          if length(naam2)>0 then
          TextOut(dc.handle, x9+5, y9-font_height1,pchar(naam2),length(naam2));{do not use here dc.textout since it will move position}
        end;
@@ -6987,7 +7141,6 @@ var dia,contour_only2 : integer;
 
 begin
 //  startTick := gettickcount64;
-
   selectfont1(dc);
   mag2:=0;
   linepos:=2; {first lines are comments}
@@ -7817,9 +7970,10 @@ begin
   back_Gcolor:=getGvalue(colors[0]);
   back_Rcolor:=getRvalue(colors[0]);
 
-  if colors[30] and $FF0000>0 then Bcolor:=$FF else Bcolor:=0;
-  if colors[30] and $00FF00>0 then Gcolor:=$FF else Gcolor:=0;
-  if colors[30] and $0000FF>0 then Rcolor:=$FF else Rcolor:=0;
+  if getBvalue(colors[30])>0 then Bcolor:=$FF else Bcolor:=0;
+  if getGvalue(colors[30])>0 then Gcolor:=$FF else Gcolor:=0;
+  if getRvalue(colors[30])>0 then Rcolor:=$FF else Rcolor:=0;
+
   for i:=0 to 255 do
   begin
     outcolor:=RGB(round((Rcolor * i + back_Rcolor * (255 - i)) / 255),
@@ -7830,9 +7984,10 @@ begin
   end;
 
   {DSS blue}
-  if colors[41] and $FF0000>0 then Bcolor:=$FF else Bcolor:=0;
-  if colors[41] and $00FF00>0 then Gcolor:=$FF else Gcolor:=0;
-  if colors[41] and $0000FF>0 then Rcolor:=$FF else Rcolor:=0;
+  if getBvalue(colors[41])>0 then Bcolor:=$FF else Bcolor:=0;
+  if getGvalue(colors[41])>0 then Gcolor:=$FF else Gcolor:=0;
+  if getRvalue(colors[41])>0 then Rcolor:=$FF else Rcolor:=0;
+
   for i:=0 to 255 do
   begin
     outcolor:=RGB(round((Rcolor * i + back_Rcolor * (255 - i)) / 255),
@@ -7954,14 +8109,8 @@ end;
 procedure load_settings(update_time :integer);
 var
   initstring :tstrings; {settings for save and loading}
-  i,yyyy     : integer;
+  i          : integer;
   dock       : string;
-  {$ifdef mswindows}
-  SystemTime: tSystemTime;  {contains computer time}
-  {$endif}
-  {$ifdef unix}
-  datetime : tdatetime;
-  {$endif}
 
       Procedure get_float(var float: double;s1 : string); {this give much smaller exe file then using strtofloat}
       var s2:string; err:integer; r:double;
@@ -8048,12 +8197,12 @@ Begin
    {integers}
   get_int(projection,'projection');
   get_int(bold,'bold');{star boldness}
-  get_int(deep,'deep');{how many deep sky objects will be displayed};
+  get_int(deepnr,'deep');{how many deep sky objects will be displayed};
   get_int(naming,'naming');{how many names of deepsky displayed}
   get_int(deepsky_level,'deep_level');{deep sky level}
 
   get_int(daylight_saving,'daylight_saving');
-  get_int(north,'north');
+  get_int(northc,'north');
   get_int(equinox,'equinox');
   get_int(equinox_telescope,'equinox_telescope');
   get_int(azimuth_degrees,'azimuth_degrees');
@@ -8076,7 +8225,9 @@ Begin
   get_int(hide_mainmenu,'hide_mainmenu');
   get_int(hide_mainmenu_text,'hide_mainmenu_text');
   get_int(clock,'clock');
-  get_int(celestial,'sidereal');
+  get_int(celestial_mode,'sidereal');
+  get_int( no_sidereal_motion,'no_sidereal');
+
   get_int(find_solareclipse,'find_solar_eclipse');
 
   auto_zoom:=initstring.Values['auto_zoom']='1';
@@ -8092,7 +8243,7 @@ Begin
   get_int(hints,'hints');
   get_int(mframe,'frame');
 
-  get_int(timestep,'time_step');
+  get_int(timestep,'timestep');
   get_int(stars_activated,'stars_activated');
   get_int(planets_activated,'planets_activated');
 
@@ -8145,7 +8296,8 @@ Begin
   get_int(Zoom_show_DSS,'zoom_show_dss');{show DSS fits early?}
 
   get_int(de430_emphemeris,'de_emphemeris');{use DE430, 431}
-  get_int(grs_offset,'grs_offset');{jupier grs}
+  get_int(grs_offset,'grs_offset');{jupiter grs}
+  get_int(trackingmethod,'trackmethod');
 
 
   actualtime:=initstring.Values['actual_time']='1';
@@ -8171,7 +8323,6 @@ Begin
 
   name_star:=initstring.Values['name_star'];
   name_deep:=initstring.Values['name_deep'];
-     if pos('level',name_deep)>0 then name_deep:='deep_sky.hnd';{temporary. Remove after 3 years in 2022}
   name_supl1:=initstring.Values['name_supl1'];
   name_supl2:=initstring.Values['name_supl2'];
   name_supl3:=initstring.Values['name_supl3'];
@@ -8181,7 +8332,6 @@ Begin
 
   path_ucac4:=initstring.Values['path_ucac4'];
   dss_mask:=initstring.Values['dss_mask'];
-  extra_fits_file:=initstring.Values['extra_fits_file'];
 
   get_str(de430_file,'de430_file');
   get_str(de431_file,'de431_file');
@@ -8279,8 +8429,6 @@ Begin
   showPlottime:=get_boolean('showplottime',false);
   mainwindow.tracktelescope1.checked:=get_boolean('track_telescope',false);
 
-  all_device_communication:=get_boolean('all_device_communication',false);{indi}
-
   mainwindow.OnoffClick(nil);{update toolbuttons}
 
   get_int(nr_markers,'nr_markers');
@@ -8311,7 +8459,7 @@ Begin
   wtime2:=wtime2actual;
   if zoom>if_below_return_view then {if high zoom restore RA/DEC using current time, else restore azimuth/altitude view}
   begin
-    if celestial=1 then latitude:=90 else latitude:=reallatitude;
+    if celestial_mode=1 then latitude:=90 else latitude:=reallatitude;
     ra_az(telescope_ra,telescope_dec,latitude,0,wtime2actual, viewx,viewy);
   end
   else
@@ -8324,7 +8472,6 @@ Begin
 
   mainwindow.font.name:=font_name;{new for font settings in other windows}
   mainwindow.font.charset:=font_charset; {rest (most) will follow}
-
 
   {now as last windows dimensions}
   missedupdate:=2; {rewrite window in a repaint}
@@ -8382,7 +8529,7 @@ begin
    {integers}
   initstring.Values['projection']:=intTostr(projection);
   initstring.Values['bold']:=intTostr(bold);{star boldness}
-  initstring.Values['deep']:=intTostr(deep) {how many deep sky objects will be displayed};
+  initstring.Values['deep']:=intTostr(deepnr) {how many deep sky objects will be displayed};
   initstring.Values['naming']:=intTostr(naming);{how many names of deepsky displayed}
 
   initstring.Values['deep_level']:=intTostr(deepsky_level);
@@ -8396,7 +8543,7 @@ begin
   initstring.Values['hour']:=intTostr(hour2);
   initstring.Values['min']:=intTostr(min2);
 
-  initstring.Values['north']:=intTostr(north);
+  initstring.Values['north']:=intTostr(northc);
   initstring.Values['equinox']:=intTostr(equinox);
   initstring.Values['equinox_telescope']:=intTostr(equinox_telescope);
   initstring.Values['azimuth_degrees']:=intTostr(azimuth_degrees);
@@ -8422,7 +8569,8 @@ begin
   initstring.Values['hide_mainmenu']:=intTostr(hide_mainmenu);
   initstring.Values['hide_mainmenu_text']:=intTostr(hide_mainmenu_text);
   initstring.Values['clock']:=intTostr(clock);
-  initstring.Values['sidereal']:=intTostr(celestial);
+  initstring.Values['sidereal']:=intTostr(celestial_mode);
+  initstring.Values['no_sidereal']:=intTostr(no_sidereal_motion);
   initstring.Values['find_solar_eclipse']:=intTostr(find_solareclipse);
 
   initstring.Values['auto_zoom']:=BoolStr[auto_zoom];
@@ -8438,7 +8586,7 @@ begin
   initstring.Values['hints']:=intTostr(hints);
   initstring.Values['frame']:=intTostr(mframe);
 
-  initstring.Values['time_step']:=intTostr(timestep);
+  initstring.Values['timestep']:=intTostr(timestep);
   initstring.Values['stars_activated']:=intTostr(stars_activated);
   initstring.Values['planets_activated']:=intTostr(planets_activated);
 
@@ -8499,6 +8647,7 @@ begin
 
   initstring.Values['de_emphemeris']:=intTostr(de430_emphemeris);
   initstring.Values['grs_offset']:=intTostr(grs_offset);{jupiter grs }
+  initstring.Values['trackmethod']:=intTostr(trackingmethod);
 
 
   initstring.Values['actual_time']:=BoolStr[actualtime];
@@ -8516,7 +8665,6 @@ begin
 
   initstring.Values['path_ucac4']:=path_ucac4;
   initstring.Values['dss_mask']:=dss_mask;
-  initstring.Values['extra_fits_file']:=extra_fits_file;
 
   initstring.Values['de430_file']:=de430_file;
   initstring.Values['de431_file']:=de431_file;
@@ -8626,7 +8774,6 @@ begin
   initstring.Values['showplottime']:=Boolstr[showplottime];
   initstring.Values['track_telescope']:=Boolstr[mainwindow.tracktelescope1.checked];
 
-  initstring.Values['all_device_communication']:=Boolstr[all_device_communication];{indi}
 
   if ((marker_name<>0) or (marker_telrad<>0)) then
   begin
@@ -8722,8 +8869,55 @@ begin
 end;
 {$ENDIF}
 
+
+procedure check_second_instance;{For OneInstance, check for other instance of the application. If so send paramstr(1) and quit}
+var
+  Client: TSimpleIPCClient;
+  other_instance : boolean;
+  {$ifdef mswindows}
+  {$else} {unix}
+//   Timer : ttimer;{for OneInstance in Linux}
+  {$endif}
+begin
+  other_instance:=false;
+  Client := TSimpleIPCClient.Create(nil);
+  with Client do
+  begin
+  try
+    ServerID:=mainwindow.SimpleIPCServer1.ServerID; {copy the id from the server to the client}
+    if Client.ServerRunning then {An older instance is running.}
+    begin
+      other_instance:=true;
+      Active := True;
+      //SendStringMessage(paramstr(1));{send paramstr(1) to the server of the first instance}
+    end;
+  except
+  end;
+    Free; {client}
+  end;
+  if other_instance then
+  begin
+    Application.ShowMainForm := False;
+    Application.Terminate;
+  end
+  else
+  begin
+    mainwindow.SimpleIPCServer1.active:=true; {activate IPCserver}
+    {$ifdef mswindows}
+    {$else} {unix}
+//    Timer := TTimer.Create(nil); {In Linux no event occurs in MessageQueued. Trigger receive message by timer}
+//    Timer.Interval := 300; {300 ms interval}
+//    Timer.OnTimer := mainwindow.receivemessage; {on timer event do receivemessage}
+    {$endif}
+  end;
+end;
+
+
+
 procedure Tmainwindow.FormCreate(Sender: TObject);
 begin
+  check_second_instance;{check for and other instance of the application. If so send paramstr(1) and quit}
+
   fastbitmap1:=Tfastbitmap.Create;{memory raw image, for delphi create before loadsettings}
 
   DoubleBuffered := true;  {very important for flickering, http://delphi.about.com/library/bluc/text/uc052102g.htm}
@@ -8939,7 +9133,38 @@ begin
 
     mainwindow.image1.canvas.Pen.Mode := pmCopy;
 
+  end
+  else
+  begin //cross only for high zoom
+    mainwindow.image1.Canvas.Pen.color:=clblue;
+    mainwindow.image1.Canvas.Pen.Mode := pmNotXor;	{ use XOR mode to draw/erase }
+
+    {wipe clean}
+    if  ascomcursorcounter<>10 then begin ascomcursorcounter:=10;oldascomcursorcounter:=9; end else begin  ascomcursorcounter:=9;oldascomcursorcounter:=10;end; {blinker to show ASCOM puls}
+    radiusX:=1+round(20*sqrt(2)) {length cross};
+    mainwindow.image1.Canvas.CopyRect(rect(oldtelescopePt.x-radiusX,oldtelescopePt.y-radiusX,oldtelescopePt.x+radiusX,oldtelescopePt.y+radiusX),Bitmap2.Canvas,
+                                      rect(oldtelescopePt.x-radiusX,oldtelescopePt.y-radiusX,oldtelescopePt.x+radiusX,oldtelescopePt.y+radiusX) );{simple repaint canvas, restore fast using bitmap copy, visible part only}
+
+    {cross}
+    mainwindow.image1.canvas.MoveTo(telescopePt.x-ascomcursorcounter, telescopePt.y-ascomcursorcounter);	{ move pen back to origin }
+    mainwindow.image1.canvas.LineTo(telescopePt.x -3, telescopePt.y -3);	{ draw the new line }
+    mainwindow.image1.canvas.MoveTo(telescopePt.x+ascomcursorcounter, telescopePt.y+ascomcursorcounter);
+    mainwindow.image1.canvas.LineTo(telescopePt.x +3, telescopePt.y +3);
+
+    mainwindow.image1.canvas.MoveTo(telescopePt.x+ascomcursorcounter, telescopePt.y-ascomcursorcounter);
+    mainwindow.image1.canvas.LineTo(telescopePt.x+ 3, telescopePt.y -3);
+
+    mainwindow.image1.canvas.MoveTo(telescopePt.x-ascomcursorcounter, telescopePt.y+ascomcursorcounter);
+    mainwindow.image1.canvas.LineTo(telescopePt.x- 3, telescopePt.y+ 3);
+
+    oldtelescopePt := Point(telescopePt.x, telescopePt.y);	{ record point for next move }
+
+    mainwindow.image1.canvas.Pen.Mode := pmCopy;
+
   end;
+
+
+
 end;
 
 
@@ -9033,17 +9258,15 @@ begin
   FLIPHtoolButton.down:=flipH<0;
   FLIPVtoolButton.down:=flipV<0;
 
-//  Northabove1.checked:=northtop>0;
-//  northabovetoolbutton.down:=northtop>0;
-
-  celestial1.checked:=celestial>0;
-  celestialtoolbutton1.Down:=celestial>0;
-  settime.celestialtoolbutton2.Down:=celestial>0;{settime menu}
+  celestial1.checked:=celestial_mode>0;
+  celestialtoolbutton1.Down:=celestial_mode>0;
+  settime.celestialtoolbutton2.Down:=celestial_mode>0;{settime menu}
+  no_sidereal_motion1.checked:=no_sidereal_motion>0;
 
   settime.followtime_toolButton1.down:=actualtime; {update tool button}
 
-  form_animation.followstars.Checked:=celestial>0;
-  form_animation.follow_none.Checked:=celestial=0;
+  form_animation.followstars1.Checked:=celestial_mode>0;
+  form_animation.follow_none1.Checked:=celestial_mode=0;
 
   starscale1.checked:=magscale<>0;
   northarrow1.checked:=northarrow<>0;
@@ -9193,7 +9416,7 @@ begin
                             Orthographic_projection1.checked:=false;
                             Cylindrical1.Checked:=true;
                             //Northabove1.Checked:=false;
-                            celestial:=0;
+                            celestial_mode:=0;
                             //Northabove1.Enabled:=false;
                          end;
                       end;{case}
@@ -9209,8 +9432,8 @@ begin
       DayF8.enabled:=true;
       N2356F11.enabled:=true;
       N2356F12.enabled:=true;
-      Followsolarobject1.enabled:=false;
-
+      TrackSolarObjectbySlews1.enabled:=false;
+      mainwindow.TrackRateAsSolarobject1.enabled:=false;
     end
     else
     begin
@@ -9223,7 +9446,8 @@ begin
       DayF8.enabled:=false;
       N2356F11.enabled:=false;
       N2356F12.enabled:=false;
-      mainwindow.followsolarobject1.enabled:=((follownaam2<>'') and (mainwindow.connect_telescope1.checked=true));{enable is connected}
+      mainwindow.TrackSolarObjectbySlews1.enabled:=((tracknaam<>'') and (mainwindow.connect_telescope1.checked=true));{enable is connected}
+      mainwindow.TrackRateAsSolarobject1.enabled:=((tracknaam<>'') and (mainwindow.connect_telescope1.checked=true));{enable is connected}
     end;
 
     mainwindow.home1.Visible:=telescope_interface<>'I';{ascom, do not show for INDI}
@@ -9307,11 +9531,11 @@ begin
 
 
   {lock routines 2015}
-  if ((celestial=0) and (form_animation.Lock_on_name.Checked=false)) then
+  if ((celestial_mode=0) and (form_animation.Lock_on_name1.Checked=false) and (no_sidereal_motion=0)) then
       wtime2:=wtime2actual;{2015 lock RA-DEC, wtime2actual is rotation position earth}
   {wtime2actual is the actual rotation  of the earth influcencing thesky and  always used for horizion, altitude grid and houses in supplement, riseset calculation, azimuth latitude calculation}
   {wtime2 is normally identical to wtime2actual and used for all objects that have a semi fixed RA, DEC position to rotate them around the sky  but can  be frozen (by lock ra, lock on name) to stop rotation}
-  if  ((julian_ET<>old_julian_ET) and (form_animation.Lock_on_name.Checked) and  (locknaam2<>'') and (polarscope_visible=false)) then {keep tracking on solar object, polarscope_visible is added to prevent polar view is showing tracked solar object instead polar star}
+  if  ((julian_ET<>old_julian_ET) and (form_animation.Lock_on_name1.Checked) and  (locknaam2<>'') and (polarscope_visible=false)) then {keep tracking on solar object, polarscope_visible is added to prevent polar view is showing tracked solar object instead polar star}
   begin
     planet(0,2000,julian_ET,ra2,dec2,mag,length2,delta,phase,phi);{alway calculate sun position, otherwise problems}
     goto_str:=locknaam2;
@@ -9325,7 +9549,7 @@ begin
   old_julian_et:=julian_ET;
   {end lock routines 2015}
 
-  if celestial=1 then latitude:=90 else latitude:=reallatitude;
+  if celestial_mode=1 then latitude:=90 else latitude:=reallatitude;
   latitude2:=(90-latitude)*pi/180;
 
   sincos(latitude2, sin_latitude2, cos_latitude2);
@@ -9359,7 +9583,9 @@ begin
     if swipe_mode=0 then image1.Cursor:=crnormalcursor2
     else
     image1.Cursor:=crcursor_hand;
+
   end;
+
 
   if toast_activated<>0 then plot_toast(canvas2); if missedupdate<>0 then exit;
   if (earth_covers_stars=0) then plot_earth(canvas2);
@@ -9411,8 +9637,8 @@ begin
   else
     planet(0,2000,julian_ET,ra2,dec2,mag,length2,delta,phase,phi);{alway calculate sun position, otherwise problems}
 
-  if comets_activated<>0 then begin plot_COMETS(canvas2);   end;
-  if asteroids_activated<>0 then begin plot_ASTEROIDS(canvas2);  end;
+  if ((comets_activated<>0) and (cometstring<>nil)) then begin plot_COMETS(canvas2);   end;
+  if ((asteroids_activated<>0) and (asteroidstring<>nil))  then begin plot_ASTEROIDS(canvas2);  end;
   if moon_covers_stars=0 then {before comets}
   begin
     if planets_activated<>0 then plot_PLANETS2(true,canvas2);{moon}
@@ -9423,7 +9649,7 @@ begin
   if suppl4_activated<>0 then begin plot_supplement(canvas2,4); end;
   if suppl5_activated<>0 then begin plot_supplement(canvas2,5); end;
 
-  if ((deep_database>0) and (deep>50)) {hide LMC, tracker far left is deepsky disabled}
+  if ((deep_database>0) and (deepnr>50) {deepsky diabled} and (deepstring<>nil)) {hide LMC, tracker far left is deepsky disabled}
         then begin plot_deepsky(canvas2); end;
 
   if showplottime then deltaticksD:=gettickcount64;;{for measuring speed}
@@ -9438,14 +9664,17 @@ begin
                                         if statusbarfree=true then {otherwise found object is not displayed}
                                          begin
                                            str(maxmag/10:3:1,bericht);
-                                           mainwindow.statusbar1.caption:=(Limiting_magn+' '+bericht);
+                                           Image_starscale1.hint:=(Limiting_magn+' '+bericht);
+                                           //mainwindow.statusbar1.caption:=(Limiting_magn+' '+bericht);
                                          end;
                                        end;
                                   0: begin plot_stars(canvas2); {.dat star databases such as SAO, PPM}
                                         if statusbarfree=true then
                                         begin
                                           str(maxmag/10:3:1,bericht);
-                                          mainwindow.statusbar1.caption:=(Limiting_magn+' '+bericht);
+                                          //mainwindow.statusbar1.caption:=(Limiting_magn+' '+bericht);
+                                          Image_starscale1.hint:=(Limiting_magn+' '+bericht);
+
                                         end;
                                      end;
                                    end;{case}
@@ -9512,6 +9741,8 @@ begin
     end;
   end;
 
+  screen.HintFont.size:=fontsize2;//for the hints, v2022-09-29
+
   missedupdate:=0;{important for example menu settings if no change}
 //    SetTextColor(canvas2.handle,colors[27]{FFFFFF});
 //    textout(canvas2.handle,200,150,pchar('wtimeactual:'+floattostr(wtime2actual)),20);
@@ -9557,14 +9788,6 @@ begin
     rrw.bottom:=rrw.bottom-mainwindow.statusbar1.height;
   end;
 
-//  if animation_running<>0 then
-//    statusbarfree:=false {do not allow display limiting magnitude}
-//  else
-//  begin
-//    statusbarfree:=true;
-//    getdatetime(actualtime,false);
-//  end;
-
   if action2>0 then {search action required}
   begin
     begin
@@ -9579,6 +9802,11 @@ begin
         begin
           if ((telescope_connected) and ((track_telescope))  )=false then  {no telescope tracking, just center the map}
           begin
+            if ((actualtime) and (celestial_mode=0)) then //2023
+            begin
+              getdatetime(actualtime,false);//2023
+              wtime2:=wtime2actual;//2023
+            end;
             ra_az(ra2,dec2,latitude,0,wtime2,viewx,viewy); {move sphere to center object}   {2016}
             missedupdate:=2;
           end;
@@ -9741,7 +9969,10 @@ begin
     floattostr2(mouse_dec*180/pi)+',,,,_'+eq+' ('+inttostr(1+supplstring2.count)+')/'+copy(today2,1,10)+'    '+',Log/_   ,-99');{info to clipboard}
   end;
 
-  missedupdate:=1;
+  if actualtime then
+    missedupdate:=2 //screen refresh required because sky has changed
+  else
+    missedupdate:=1;
   suppl2_activated:=1; {always activate supplement 2}
   paint_sky;
 end;
@@ -10277,10 +10508,12 @@ begin
 
     if ((oldx<>x) or (oldy<>y)) then
     begin
-      str((180/pi)*(chart_orientation-arctan2(x-startx,starty-y) ):6:1,ss);{PA}
       ang_sep(mouse_ra_start,mouse_dec_start,mouse_ra,mouse_dec,sep);{calculate angular distance}
-
       sep:=sep*60*180/pi; {angular seperation in arc min}
+
+      {see meeus new formula 46.5, angle of moon limb}
+      //See also https://astronomy.stackexchange.com/questions/25306/measuring-misalignment-between-two-positions-on-sky
+      ss:=FloattostrF(arctan2(cos(mouse_dec_start)*sin(mouse_ra-mouse_ra_start),sin(mouse_dec)*cos(mouse_dec_start) - cos(mouse_dec)*sin(mouse_dec_start)*cos(mouse_ra-mouse_ra_start))*180/pi,FFfixed,6,1)+'°';; {Accurate formula. Angle between line between the two stars and north as seen at ra1, dec1}
 
       rect_diagonal:=sqrt(sqr(startX-X)+sqr(startY-Y));
       sep_width:=sep*abs(startX-X)/rect_diagonal;
@@ -10320,7 +10553,7 @@ begin
     mouse_ra_start:=mouse_ra; {position corner}
     mouse_dec_start:=mouse_dec;{position corner}
     {$ifdef darwin} {For the Mac the close event of the popmenu is used}
-    {$else} {Windoows, unix}
+    {$else} {Windows, unix}
      mainwindow.boxshape1.height:=2; {stop zoom function}
     {$endif}
 
@@ -10421,17 +10654,30 @@ begin
   mainwindow.Objects1Click(Sender);{object menu}
 end;
 
-procedure update_telescope_menu(on1: boolean);
+
+procedure update_telescope_menu(connected: boolean);
 begin
-  mainwindow.connect_telescope1.checked:=on1; {enable popupmenu1 options}
-  mainwindow.Telescopetomouseposition1.enabled:=on1;{mouse menu make enable instead of disabled}
-  mainwindow.telescope_synctomouse1.enabled:=on1;
-  mainwindow.telescope_abort1.enabled:=on1;
-  mainwindow.telescope_aborttoolbutton.enabled:=on1;
-  mainwindow.tracktelescope1.enabled:=on1;
-  mainwindow.park_unpark1.enabled:=on1;
-  if on1 then telescope_position:='   Telescope connected' else  telescope_position:='';
+  if connected=false then
+  begin
+    mainwindow.TrackSolarObjectbySlews1.checked:=false;
+    if mainwindow.TrackRateAsSolarobject1.checked then
+    begin
+      set_telescope_movement_rates(0,0{"/hour});//return to normal rates
+      application.processmessages;
+      sleep(150);
+      mainwindow.TrackRateAsSolarobject1.checked:=false;
+    end;
+  end;
+  mainwindow.connect_telescope1.checked:=connected; {enable popupmenu1 options}
+  mainwindow.Telescopetomouseposition1.enabled:=connected;{mouse menu make enable instead of disabled}
+  mainwindow.telescope_synctomouse1.enabled:=connected;
+  mainwindow.telescope_abort1.enabled:=connected;
+  mainwindow.telescope_aborttoolbutton.enabled:=connected;
+  mainwindow.tracktelescope1.enabled:=connected;
+  mainwindow.park_unpark1.enabled:=connected;
+  if connected then telescope_position:='   Telescope connected' else  telescope_position:='';
 end;
+
 
 procedure Tmainwindow.Load1Click(Sender: TObject);  {load status}
 begin
@@ -10574,8 +10820,11 @@ end;
 {$IFDEF fpc}
 procedure Tmainwindow.indi_client1Click(Sender: TObject);
 begin
-  indi.visible:=true;
-  indi.setfocus;
+  if indi<>nil then
+  begin
+    indi.visible:=true;
+    indi.setfocus;
+  end;
 end;
 
 procedure Tmainwindow.home1Click(Sender: TObject);
@@ -10671,10 +10920,12 @@ begin
   Editobject1Click(nil);
 end;
 
+
 procedure Tmainwindow.SaveDialog1Close(Sender: TObject);
 begin
   oldx:=-9999;{kill any rubber band behaviour, for example double clicked on file after load event}
 end;
+
 
 procedure Tmainwindow.setpark1Click(Sender: TObject);
 begin
@@ -10718,22 +10969,6 @@ begin
     (key=vk_F1))
   then begin  hns_keydown:=1;
   end
-//  else
-//  if key=mainwindow.MinF3.shortcut then begin  hns_keydown:=2; end
-//  else
-//  if key=mainwindow.MinF4.shortcut then begin  hns_keydown:=2 end
-//  else
-//  if key=mainwindow.hourF5.shortcut then begin hns_keydown:=2; end
-//  else
-//  if key=mainwindow.hourF6.shortcut then begin hns_keydown:=2 end
-//  else
-//  if key=mainwindow.dayF7.shortcut then begin hns_keydown:=2; end
-//  else
-//  if (key=mainwindow.dayF8.shortcut) then begin hns_keydown:=2 end
-//  else
-//  if (key=mainwindow.N2356F11.shortcut) then begin hns_keydown:=2; end
-//  else
-//  if (key=mainwindow.N2356F12.shortcut) then begin hns_keydown:=2 end
   else
   if (key=vk_up) then
   begin
@@ -10867,11 +11102,11 @@ end;
 procedure Tmainwindow.Reset1Click(Sender: TObject);
 begin
   if projection=0 then zoom:=0.9 else zoom:=0.9/(pi/2);
-  celestial:=0;{switch off north up}
+  celestial_mode:=0;{switch off north up}
   if projection=0 then  viewy:=0 else  viewy:=pi/2;
 
-  if north=1 then begin viewx:=pi; end
-            else  begin viewx:=0; end;
+  if northc=1 then begin viewx:=pi; end
+             else  begin viewx:=0; end;
 
   wtime2:=wtime2actual;{set world straight up}
   missedupdate:=2;
@@ -10923,6 +11158,8 @@ begin
        alpaca_put_string('tracking','tracking=true'); {put for tracking=true or false, abort,findhome, park}
   end;
 end;
+
+
 
 procedure Tmainwindow.Usesystemtime1Click(Sender: TObject);
 begin
@@ -10988,7 +11225,7 @@ end;
 
 procedure Tmainwindow.Orthographic_projection1Click(Sender: TObject);
 begin
-  if projection=2 then celestial:=old_sidereal2; {restore old settings after cylindrical projection}
+  if projection=2 then celestial_mode:=old_sidereal2; {restore old settings after cylindrical projection}
   projection:=0;
   missedupdate:=2;
   paint_sky; {rewrite window }
@@ -10996,7 +11233,7 @@ end;
 
 procedure Tmainwindow.Azimuthalequidistant1Click(Sender: TObject);
 begin
-  if projection=2 then celestial:=old_sidereal2; {restore old settings after cylindrical projection}
+  if projection=2 then celestial_mode:=old_sidereal2; {restore old settings after cylindrical projection}
   projection:=1;
   missedupdate:=2;
   paint_sky; {rewrite window }
@@ -11004,7 +11241,7 @@ end;
 
 procedure Tmainwindow.Cylindrical1Click(Sender: TObject);
 begin
-  old_sidereal2:=celestial;{store for going back to projection 0, 1}
+  old_sidereal2:=celestial_mode;{store for going back to projection 0, 1}
   projection:=2;
   missedupdate:=2;
   paint_sky; {rewrite window }
@@ -11198,7 +11435,6 @@ procedure Tmainwindow.Timer1Timer(Sender: TObject);
 var
   mon,day,hou,mi,sec  : STRING[2];
   year3               : STRING[4];
-  timedifference      : integer;
   active_file_settings,JPL_DE  : string;
   {$ifdef mswindows}
   SystemTime: tSystemTime;
@@ -11208,29 +11444,32 @@ var
 begin
   {$ifdef fpc}
   {indi actions}
-  if ((telescope_interface='I') and  (connect_during_creation>0)) then {this doesn't work in oncreate in indiform, it freezes keyboard and grahpic. It works however timer based or on onshow}
+  if ((telescope_interface='I') and  (connect_during_creation>0)) then {this doesn't work in oncreate in indiform, it freezes keyboard and graphic. It works however timer based or on onshow}
   begin
-    {first step}
+    if connect_during_creation>2 then dec(connect_during_creation) //wait a little longer
+    else
+    {first action step. Connect the hnksy client}
     if connect_during_creation=2 then
     begin
+      connect_during_creation:=1;//stop any second startup of the client
       indi_client_on(true);
-//      try
-//      indi_server_connecting:= indi.INDI_client.Connect(indi_server_address,strtoint(indi_Port));{localhost, 7624}
-//      except
-//      indi_server_connecting:=false;
-//      end;
+      application.processmessages; {wait a little}
+    end
+    else
+    begin {second step, connect INDI telescope driver}
+      if connect_during_creation=1 then
+      begin
+        if  indi_client_connected then
+        begin
+          if indi_telescope_connected=false then
+            connect_indi_device(indi_telescope_name)  {update_telescope menu is done procedure extract_indi_switches(s:string);}
+          else
+          connect_during_creation:=0;{step done}
+        end
+        else
+          connect_during_creation:=0;{stop trying. Client is not connected}
+      end;
     end;
-//    else
-//    indi_server_connecting:=false; {remove yellow color}
-
-    application.processmessages; {wait a little}
-    {connect INDI telescope driver}
-    {second step }
-    if ((connect_during_creation=1) and
-        (indi_client_connected)) then
-           connect_indi_device(indi_telescope_name);    {update_telescope menu is done procedure extract_indi_switches(s:string);}
-
-    dec(connect_during_creation);{step done}
   end;
 
   if indi_telescope_connected then
@@ -11267,33 +11506,22 @@ begin
     sec:=leadingzero(secondof(time));
    {$endif}
     if de430_loaded then JPL_DE:=',    DE' else JPL_DE:='';
-    mainwindow.caption:=active_file_settings +'Hallo northern sky   '+
+    mainwindow.caption:=active_file_settings +'Hallo Northern Sky   '+
                    year3+'-'+mon+'-'+day+'  '+hou+':'+mi+':'+sec+telescope_position+drive_status+JPL_DE+',   '+stardatabase_displayed_naam;
   end
   else
-    mainwindow.caption:=active_file_settings+'Hallo northern sky   '+telescope_position+drive_status ;
+    mainwindow.caption:=active_file_settings+'Hallo Northern Sky   '+telescope_position+drive_status ;
 
   {$ifdef mswindows}
-  if ((actualtime) and  ((systemtime.wsecond=0)or (timestep=0){for update every second}) ) then
+  if ((actualtime) and  (frac( (systemtime.wsecond+systemtime.wminute*60)/timestep)=0) ) then
   {$else}
-  if ((actualtime) and  ((secondof(time)=0) or (timestep=0){for update every second}) ) then
+  if ((actualtime) and  (frac( (secondof(time)+minuteof(time)*60)/timestep)=0)  ) then
   {$endif}
-
   begin
     if ((getkeystate(vk_lbutton)<0) or (missedupdate<>0) or (mainwindow.boxshape1.height>3)   {popup active}) then exit;{ 2016 do not update  when mouse is  pulling square or popup is visible}
 
-    {$ifdef mswindows}
-    timedifference:=trunc(fnmodulo(systemtime.wminute - min2,60));
-    {$ELSE} {}
-    timedifference:=trunc(fnmodulo(minuteof(time) - min2,60));
-    {$endif}
-
-    if ((timedifference>=timestep) or (timedifference=0)) {0 for every 60 minutes !}then
-    begin
-//      getdatetime(actualtime,false);
-      missedupdate:=2;
-      paint_sky; {rewrite window }
-    end;
+    missedupdate:=2;
+    paint_sky; {rewrite window }
   end;
 end;
 
@@ -11768,7 +11996,7 @@ begin
   end;
 end;
 
-procedure Tmainwindow.connect_telescope1click(Sender: TObject);{connect to ascom telescope driver}
+procedure Tmainwindow.connect_telescope1click(Sender: TObject);{connect to ascom or INDI telescope driver}
 begin
   if connect_telescope1.checked=false then
   begin
@@ -11781,7 +12009,8 @@ begin
 
   {$ifdef fpc}
     if telescope_interface='I' then
-      INDI_disconnect_device(indi_telescope_name); {disconnect INDI telescope device}
+      indi_client_on(false);
+    //  INDI_disconnect_device(indi_telescope_name); {disconnect INDI telescope device}
 
   {$else} {delphi}
   {$endif}
@@ -11860,8 +12089,15 @@ begin
   {$ifdef fpc}
   if ((telescope_interface='I') and (sender<>nil)) then {=Ascom or I for INDI, if snder is nil, then call is from load setting, ignore. Build up connection with event creata}
   begin
-    mainwindow.ascom_timer.enabled:=true;{2022 change to true}{INDI communication and timer give problemss}
-    if indi_client_connected=false then connect_during_creation:=2;
+    if indi_client_connected=false then
+    begin
+      page_settings:=5; //telescope menu
+      mainwindow.settings1click(Sender);
+
+    end;
+
+//    mainwindow.ascom_timer.enabled:=true;{2022 change to true}{INDI communication and timer give problemss}
+//    if indi_client_connected=false then connect_during_creation:=2;
     {connect INDI telescope driver}
   end;
   {$else} {delphi}
@@ -12229,6 +12465,7 @@ begin
   end;
 end;
 
+
 procedure Tmainwindow.dss_red1Click(Sender: TObject);
 begin
   if dss_red1.checked then dss_bandpass:=8;
@@ -12236,6 +12473,7 @@ begin
   missedupdate:=2;
   paint_sky;
 end;
+
 
 procedure Tmainwindow.dss2_red1Click(Sender: TObject);
 begin
@@ -12245,6 +12483,7 @@ begin
   paint_sky;
 end;
 
+
 procedure Tmainwindow.dss_blue1Click(Sender: TObject);
 begin
   if dss_blue1.checked then dss_bandpass:=7;
@@ -12252,6 +12491,7 @@ begin
   missedupdate:=2;
   paint_sky;
 end;
+
 
 procedure Tmainwindow.dss2_blue1Click(Sender: TObject);
 begin
@@ -12261,6 +12501,7 @@ begin
   paint_sky;
 end;
 
+
 procedure Tmainwindow.dss2_infrared1Click(Sender: TObject);
 begin
   if dss2_infrared1.checked then dss_bandpass:=37;
@@ -12269,21 +12510,16 @@ begin
   paint_sky;
 end;
 
+
 procedure Tmainwindow.date_and_time1MouseEnter(Sender: TObject);
 begin
   hint:=Time_reference+': '+today2_UTC;{show with hint UTC or TDT time}
 end;
 
+
 procedure Tmainwindow.date_and_time1Click(Sender: TObject);
 begin
   mainwindow.Enterdatetime1Click(Sender);{enter time & date}
-end;
-
-
-procedure Tmainwindow.boxshape1MouseMove(Sender: TObject; Shift: TShiftState;
-  X, Y: Integer);
-begin
-  boxshape1.visible:=false;{prevent the shape stays}
 end;
 
 
@@ -12347,7 +12583,7 @@ procedure Tmainwindow.angular_distance1Click(Sender: TObject);
 begin
   if mainwindow.boxshape1.height>4 then
   begin
-    case  QuestionDlg (pchar('Angular distance'),pchar(ss_sep),mtInformation,[mrYes,'Copy to clipboard?', mrNo, 'No', 'IsDefault'],'') of
+    case  QuestionDlg (angular_distance1.caption,pchar(ss_sep),mtInformation,[mrYes,Copy_to_clipboard, mrNo, close_str, 'IsDefault'],'') of
                mrYes: Clipboard.AsText:=ss_sep;
     end;
   end;
@@ -12396,11 +12632,14 @@ begin
   begin
     if (not indi_client_connected) then
     begin
-      indi.free;
-      indi:=Tindi.Create(mainwindow); {in project option not loaded automatic}
-      indi.visible:=false;
-
+      if indi=nil then
+      begin
+         indi:=Tindi.Create(mainwindow); {in project option not loaded automatic}
+         application.processmessages;
+         indi.visible:=false;
+      end;
       mainwindow.indiclient:=TMyINDITCPClient.create;
+      application.processmessages;
       indi_client_connected:=true;
     end;
   end
@@ -12408,13 +12647,17 @@ begin
   begin
     if (indi_client_connected) then
     begin
-      if indi_telescope_connected then INDI_disconnect_device(indi_telescope_name);{disconnect INDI telescope device}
-      sleep(150);{give some time to process}
-      mainwindow.indiclient.Terminate;  //Call Terminate to set Terminated
-      indi_client_connected:=false;
-      sleep(150);
+      connect_during_creation:=0; //stop reconnecting
       disconnect_from_indi_server;  //some house keeping
+      sleep(150);{give some time to process}
+      try
+        mainwindow.indiclient.Terminate;  //Call Terminate to set Terminated
+      except
+      end;
+      indi_client_connected:=false; //essential to prevent memory leaks later
       indi.release;{free INDI form and all buttons}
+      indi:=nil;//make nil for detection if running
+      indi_telescope_connected:=false;
     end;
   end;
 end;
@@ -12486,7 +12729,7 @@ begin
   starty:=-9999;{-99 prevent problems pull square start to early after mouse click when screen has not finished painting}
   opendialog1.title:=open_fits_title;  // open_file dialog title;
   opendialog1.InitialDir:=ExtractFilePath(extra_fits_file); //dss_path;
-  opendialog1.filter:='FITS imagefile (*.fit*)|*.fit*';
+  opendialog1.filter:='FITS imagefile (*.fit*)|*.fit;*.fits';
 
   if opendialog1.execute then
   begin
@@ -12717,7 +12960,7 @@ begin
     paint_sky; {rewrite window}
   end
   else
-    ShowMessage(error_string+' while downloading ' + internetlink);
+    application.messagebox(pchar(error_string+' while downloading: '+#10+#13+#10+#13+internetlink),pchar(error_string),MB_OK);
 end;
 
 
@@ -12764,7 +13007,7 @@ begin
     paint_sky; {rewrite window}
   end
   else
-    ShowMessage(error_string+' while downloading ' + internetlink);
+  application.messagebox(pchar(error_string+' while downloading: '+#10+#13+#10+#13+internetlink),pchar(error_string),MB_OK);
 end;
 
 procedure Tmainwindow.get_mast1Click(Sender: TObject); {get  mast image}
@@ -12789,7 +13032,7 @@ begin
     paint_sky; {rewrite window}
   end
   else
-    ShowMessage(error_string+' while downloading ' + internetlink);
+    application.messagebox(pchar(error_string+' while downloading: '+#10+#13+#10+#13+internetlink),pchar(error_string),MB_OK);
 end;
 
 procedure Tmainwindow.Telescopetomouseposition1Click(Sender: TObject);
@@ -12820,6 +13063,11 @@ begin
   cut_position:=0;
   missedupdate:=2;
   paint_sky; {rewrite window}
+end;
+
+procedure Tmainwindow.no_sidereal_motion1Click(Sender: TObject);
+begin
+  if no_sidereal_motion1.checked then no_sidereal_motion:=1 else no_sidereal_motion:=0;;
 end;
 
 procedure Tmainwindow.Linestart1Click(Sender: TObject);
@@ -13025,36 +13273,79 @@ begin
   paint_sky; {rewrite window}
 end;
 
-procedure Tmainwindow.Followsolarobject1Click(Sender: TObject);
+procedure Tmainwindow.TrackSolarObjectbySlews1Click(Sender: TObject);
 begin
-   if ((Followsolarobject1.checked=false) and (follownaam2<>'')) then
+   if ((TrackSolarObjectbySlews1.checked=false) and (tracknaam<>'')) then
    begin
      telescope_follow_solar:=1;{follow}
-     Followsolarobject1.checked:=true;
+     Tracksolarobject:=0;//stop tracking
+     TrackSolarObjectbySlews1.checked:=true;
      missedupdate:=2; {rewrite window}
      paint_sky; {rewrite window}
+
+     if mainwindow.TrackRateAsSolarobject1.checked then
+     begin
+       set_telescope_movement_rates(0,0{"/hour});//return to normal rates
+       mainwindow.TrackRateAsSolarobject1.checked:=false;//allow only one track option
+     end;
    end
    else
    begin
-     Followsolarobject1.checked:=false;
+     TrackSolarObjectbySlews1.checked:=false;
      telescope_follow_solar:=0;{follow}
    end;
+end;
+
+procedure Tmainwindow.TrackRateAsSolarobject1Click(Sender: TObject);
+var
+   works: boolean;
+begin
+  if ((TrackRateAsSolarobject1.checked=false) and (tracknaam<>'')) then
+  begin
+    works:=false;
+    if telescope_interface='A' then
+          works:=((ascom_mount.CanMoveAxis(0)) and (ascom_mount.CanMoveAxis(1)))
+    else
+    if telescope_interface='I' then works:=true
+    else
+    if telescope_interface='C' then works:=true;
+
+
+    if works then
+    begin
+      Tracksolarobject:=1;{start tracking}
+      telescope_follow_solar:=0;//stop following
+      TrackRateAsSolarobject1.checked:=true;
+      TrackSolarObjectbySlews1.checked:=false;//allow only one track option
+      missedupdate:=2; {rewrite window}
+      paint_sky; {rewrite window}
+    end
+    else
+      ShowMessage('Not supported by this mount!');
+  end
+  else
+  begin
+    TrackRateAsSolarobject1.checked:=false;
+    Tracksolarobject:=0;{track}
+    set_telescope_movement_rates(0,0{"/hour});//return to normal rates
+  end;
+
 end;
 
 procedure Tmainwindow.celestial1Click(Sender: TObject);
 var
   t : double;
 begin
-  if celestial<>0 then
+  if celestial_mode<>0 then
   begin
-   celestial:=0;
+    celestial_mode:=0;
    {wtime2 is following wtime2actual and updated}
     wtime2:=wtime2actual;{update already wtime2}
     t:=reallatitude;
   end
   else
   begin
-    celestial:=1;
+    celestial_mode:=1;
     t:=90;
    {wtime2 is frozen. wtime2actual is updated}
   end;

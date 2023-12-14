@@ -1,7 +1,7 @@
 object Settings: TSettings
-  Left = 490
+  Left = 477
   Height = 525
-  Top = 192
+  Top = 153
   Width = 734
   Caption = 'Settings:'
   ClientHeight = 525
@@ -16,7 +16,7 @@ object Settings: TSettings
   OnShow = FormShow
   ParentFont = True
   Position = poOwnerFormCenter
-  LCLVersion = '2.0.12.0'
+  LCLVersion = '2.2.4.0'
   object help_settings: TLabel
     Cursor = crHandPoint
     Left = 704
@@ -1398,12 +1398,12 @@ object Settings: TSettings
         ClientWidth = 356
         TabOrder = 2
         object frequencyof: TLabel
-          Left = 73
+          Left = 104
           Height = 15
           Hint = 'Used if  "actual time" is on.'
           Top = 0
           Width = 206
-          Caption = 'Frequency of screen update.  [minutes]'
+          Caption = 'Frequency of screen update.  [seconds]'
           ParentColor = False
           ParentShowHint = False
           ShowHint = True
@@ -1412,24 +1412,26 @@ object Settings: TSettings
         object supdate1: TEdit
           Left = 14
           Height = 23
-          Hint = 'minutes [0..60], setting 0 will result in an one second update interval. '
+          Hint = 'seconds[0..3600]'
           Top = 3
-          Width = 33
+          Width = 58
           ParentColor = True
           ParentShowHint = False
           ShowHint = True
           TabOrder = 0
-          Text = '1'
+          Text = '60'
         end
         object screenupdate1: TUpDown
-          Left = 47
+          Left = 72
           Height = 23
           Top = 3
           Width = 17
           Associate = supdate1
-          Max = 60
+          Increment = 60
+          Max = 3600
           Min = 0
-          Position = 1
+          OnChanging = screenupdate1Changing
+          Position = 60
           TabOrder = 1
         end
       end
@@ -1888,7 +1890,7 @@ object Settings: TSettings
         Left = 366
         Height = 35
         Hint = 'Program will first look for the hnsky folder in Documents. If not existing, it will alternatively use the program folder.'
-        Top = 368
+        Top = 344
         Width = 356
         AutoSize = True
         Caption = 'Documents path'
@@ -1909,10 +1911,10 @@ object Settings: TSettings
         end
       end
       object show_plot_time1: TCheckBox
-        Left = 368
+        Left = 160
         Height = 19
         Hint = 'Display in the status bar the time used to plot.'
-        Top = 414
+        Top = 424
         Width = 100
         Caption = 'Show plot time'
         OnClick = show_plot_time1Click
@@ -2072,6 +2074,39 @@ object Settings: TSettings
           WordWrap = True
         end
       end
+      object solartrackingmethod1: TGroupBox
+        Left = 366
+        Height = 43
+        Top = 384
+        Width = 356
+        AutoSize = True
+        Caption = 'Smooth solar object tracking'
+        ClientHeight = 23
+        ClientWidth = 352
+        Constraints.MaxWidth = 356
+        Constraints.MinWidth = 356
+        ParentShowHint = False
+        TabOrder = 14
+        object trackingmethod1: TComboBox
+          Left = 0
+          Height = 23
+          Top = 0
+          Width = 354
+          ItemHeight = 15
+          ItemIndex = 0
+          Items.Strings = (
+            'Rate method. Direction east N->S, west N->N'
+            'Rate method. Direction east N->N, west N->N'
+            'Rate method. Direction east N->N, west N->S'
+            'Moveaxis method. Direction east N->S, west N->N'
+            'Moveaxis method. Direction east N->N, west N->N'
+            'Moveaxis method. Direction east N->N, west N->S'
+          )
+          ParentColor = True
+          TabOrder = 0
+          Text = 'Rate method. Direction east N->S, west N->N'
+        end
+      end
     end
     object Colors_tab: TTabSheet
       Hint = ' '
@@ -2096,7 +2131,7 @@ object Settings: TSettings
         Width = 159
         ParentShowHint = False
       end
-      object font_sizes: TLabel
+      object font_sizes1: TLabel
         Left = 624
         Height = 15
         Top = 88
@@ -2118,6 +2153,7 @@ object Settings: TSettings
         ClientHeight = 401
         ClientWidth = 528
         Color = clSkyBlue
+        ParentBackground = False
         ParentColor = False
         ParentShowHint = False
         ShowHint = True
@@ -2757,52 +2793,23 @@ object Settings: TSettings
           Left = 200
           Height = 24
           Top = 16
-          Width = 110
+          Width = 128
           Align = alCustom
           Alignment = taLeftJustify
           BevelOuter = bvLowered
           BorderWidth = 2
-          Caption = '&File   Search'
+          Caption = '📂File   Search'
           Color = clBlack
           DragKind = dkDock
           Font.Color = clYellow
           Font.Height = 11
           Font.Name = 'Tahoma'
+          ParentBackground = False
           ParentColor = False
           ParentFont = False
           TabOrder = 4
           UseDockManager = False
           OnClick = colorClick
-        end
-        object medium_limit1: TUpDown
-          Left = 0
-          Height = 13
-          Hint = 'Medium coloring up to this brightness.'
-          Top = 0
-          Width = 8
-          AlignButton = udLeft
-          Max = 150
-          Min = 0
-          OnClick = limitClick
-          ParentShowHint = False
-          Position = 121
-          ShowHint = True
-          TabOrder = 5
-        end
-        object medium_limit2: TUpDown
-          Left = 0
-          Height = 13
-          Hint = 'Medium coloring up to this brightness.'
-          Top = 0
-          Width = 8
-          AlignButton = udLeft
-          Max = 150
-          Min = 0
-          OnClick = limitClick
-          ParentShowHint = False
-          Position = 121
-          ShowHint = True
-          TabOrder = 6
         end
         object col41: TLabel
           Cursor = crHandPoint
@@ -2819,7 +2826,7 @@ object Settings: TSettings
         end
         object col42: TLabel
           Cursor = crHandPoint
-          Left = 328
+          Left = 336
           Height = 15
           Hint = 'Click to change color.'
           Top = 104
@@ -2835,7 +2842,7 @@ object Settings: TSettings
         end
         object col42_1: TLabel
           Cursor = crHandPoint
-          Left = 328
+          Left = 336
           Height = 15
           Hint = 'Click to change color.'
           Top = 128
@@ -2851,15 +2858,16 @@ object Settings: TSettings
         end
         object col23: TLabel
           Cursor = crHandPoint
-          Left = 298
+          Left = 296
           Height = 37
           Hint = 'Click to change color.'
-          Top = 104
-          Width = 14
+          Top = 105
+          Width = 53
           Alignment = taRightJustify
-          Caption = '🠕'
+          Caption = '⮑'
           Font.Color = clGreen
           Font.Height = -27
+          Font.Orientation = 700
           Font.Style = [fsBold]
           ParentColor = False
           ParentFont = False
@@ -3504,21 +3512,21 @@ object Settings: TSettings
         Width = 106
         Caption = 'Ascom interface'
         Checked = True
-        OnChange = Ascom_radiobutton1Change
+        OnClick = Ascom_radiobutton1Click
         ParentFont = False
         ParentShowHint = False
         ShowHint = True
         TabOrder = 2
         TabStop = True
       end
-      object INDI_radioButton1: TRadioButton
+      object indi_radioButton1: TRadioButton
         Left = 24
         Height = 19
         Hint = 'Use the INDI interface'
         Top = 136
         Width = 92
         Caption = 'INDI interface'
-        OnChange = INDI_radioButton1Click
+        OnChange = indi_radioButton1Change
         ParentShowHint = False
         ShowHint = True
         TabOrder = 0
@@ -3527,11 +3535,12 @@ object Settings: TSettings
         Left = 24
         Height = 236
         Top = 168
-        Width = 693
+        Width = 692
         AutoSize = True
         Caption = 'INDI client setup for TCP/IP communication with the INDI server'
         ClientHeight = 216
-        ClientWidth = 689
+        ClientWidth = 688
+        Enabled = False
         TabOrder = 1
         object indi_host_address1: TEdit
           Left = 184
@@ -3546,7 +3555,7 @@ object Settings: TSettings
           Text = 'localhost'
         end
         object indi_address1: TLabel
-          Left = 2
+          Left = 1
           Height = 39
           Hint = 'If your INDI server is runnig in the same computer as HNSKY then enter 127.0.0.1 or localhost '
           Top = 0
@@ -3586,24 +3595,23 @@ object Settings: TSettings
           Text = '7624'
         end
         object telescope_name_select1: TComboBox
-          Left = 185
+          Left = 184
           Height = 23
           Hint = 'Select here your telescope driver after connecting to the server.'
           Top = 116
-          Width = 504
+          Width = 456
           Color = clRed
           ItemHeight = 15
-          OnGetItems = telescope_name_select1GetItems
+          OnCloseUp = telescope_name_select1CloseUp
           ParentShowHint = False
           ShowHint = True
           TabOrder = 2
-          Text = 'telescope_name_select1'
         end
         object select_telescope_name1: TLabel
-          Left = 1
+          Left = 8
           Height = 41
           Hint = 'Select here your telescope driver after connecting to the server.'
-          Top = 112
+          Top = 120
           Width = 168
           Alignment = taRightJustify
           AutoSize = False
@@ -3793,6 +3801,19 @@ object Settings: TSettings
           ParentShowHint = False
           ShowHint = True
         end
+      end
+      object no_telescope1: TRadioButton
+        Left = 24
+        Height = 19
+        Hint = 'No telescope'
+        Top = 418
+        Width = 49
+        Caption = 'None'
+        OnChange = no_telescope1Change
+        ParentFont = False
+        ParentShowHint = False
+        ShowHint = True
+        TabOrder = 5
       end
     end
     object server_tab1: TTabSheet

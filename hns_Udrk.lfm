@@ -15,7 +15,7 @@ object darkform: Tdarkform
   OnPaint = FormPaint
   OnShow = FormShow
   Position = poOwnerFormCenter
-  LCLVersion = '2.0.6.0'
+  LCLVersion = '2.0.12.0'
   object Bevel_hour: TBevel
     Left = 64
     Height = 21
@@ -238,7 +238,7 @@ object darkform: Tdarkform
       'ColorS=F0FBFF'
       'ColorT=A4A0A0'
     )
-    left = 380
-    top = 440
+    Left = 380
+    Top = 440
   end
 end

@@ -41,6 +41,7 @@ const
 
   procedure alpaca_read(s:string);
   procedure alpaca_get_radec;
+  procedure alpaca_send_http_put(mess,param: string);{send a http PUT to Alpaca}
   procedure alpaca_put_generic(command: string; ra,dec : double);{slewToCoordinatesasync, slewtocoordinates or synctocoordinates}
   procedure alpaca_get_tracking;{get tracking status}
   procedure alpaca_put_string(command,value1: string);{put for tracking=true/false, abort,findhome, park}
@@ -49,6 +50,7 @@ const
   procedure alpaca_get_canslew; {slew possible but not feedback of position at the same time}
   procedure alpaca_get_canslewasync;{async slew possible, live feed back Ra/DEC}
   procedure alpaca_get_equatorialsystem; {equinox of telescope}
+  procedure alpaca_get_sideofpier; {side of pier, East, West or unknown?}
 
 
 
@@ -191,7 +193,7 @@ begin
     ss:=copy(s,b,e-b);
     if length(ss)>0 then
     begin
-       mainwindow.statusbar1.caption:='Alpaca:'+ss;
+       mainwindow.statusbar1.caption:='Alpaca: '+ss;
        mainwindow.error_message1.visible:=true;
        mainwindow.error_message1.caption:=ss;
     end;
@@ -226,6 +228,8 @@ begin
       if bool_value=+1 then Ascom_mount_capability:=1;
       if bool_value=-1 then Ascom_mount_capability:=0;
     end;
+    if tid=ord('S')+ord('I')+ord('D')+ord('E')+ord('P') then
+      sideofpier_alpaca:=round(value); //Indicates the pointing state of the mount. 0 = pierEast, 1 = pierWest, -1= pierUnknown
 
     if tid=6981 then {equatorialsystem}
     begin
@@ -240,6 +244,8 @@ begin
       end;
     end;
 
+
+
   end;
 end;
 
@@ -253,6 +259,7 @@ procedure alpaca_put_generic(command: string; ra,dec : double);{slewToCoordinate
 begin
   alpaca_send_http_put(command,'RightAscension='+floattostr3(ra)+'&Declination='+floattostr3(dec)+'&ClientID=7&ClientTransactionID=100');
 end;
+
 
 procedure alpaca_get_generic(command : string);{generic GET command for abortslew, park, home}
 begin
@@ -287,6 +294,10 @@ begin
   alpaca_send_http_get('equatorialsystem?clientid=7&clienttransactionid=6981');{HNSKY specific transactions E=#69, Q=#81}
 end;
 
+procedure alpaca_get_sideofpier; {side of pier, East, West or unknown?}
+begin
+  alpaca_send_http_get('sideofpier?clientid=7&clienttransactionid='+inttostr(ord('S')+ord('I')+ord('D')+ord('E')+ord('P')));{HNSKY specific transactions number #SIDEP}
+end;
 
 procedure alpaca_put_string(command,value1: string);{put for tracking=true or false, abort,findhome, park}
 begin

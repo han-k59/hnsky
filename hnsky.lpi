@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
-    <Version Value="11"/>
+    <Version Value="12"/>
     <PathDelim Value="\"/>
     <General>
       <Flags>
         <MainUnitHasUsesSectionForAllUnits Value="False"/>
         <MainUnitHasCreateFormStatements Value="False"/>
         <MainUnitHasTitleStatement Value="False"/>
+        <CompatibilityMode Value="True"/>
       </Flags>
       <SessionStorage Value="InProjectDir"/>
-      <MainUnit Value="0"/>
       <Title Value="hnsky"/>
       <Scaled Value="True"/>
       <UseAppBundle Value="False"/>
@@ -127,7 +127,6 @@
     </Parsing>
     <Linking>
       <Debugging>
-        <GenerateDebugInfo Value="False"/>
         <DebugInfoType Value="dsDwarf2Set"/>
       </Debugging>
       <Options>
@@ -143,7 +142,7 @@
     </Other>
   </CompilerOptions>
   <Debugging>
-    <Exceptions Count="12">
+    <Exceptions Count="13">
       <Item1>
         <Name Value="EAbort"/>
       </Item1>
@@ -180,6 +179,9 @@
       <Item12>
         <Name Value="EOleSysError"/>
       </Item12>
+      <Item13>
+        <Name Value="EAccessViolation"/>
+      </Item13>
     </Exceptions>
   </Debugging>
 </CONFIG>
