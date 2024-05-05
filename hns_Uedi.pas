@@ -79,14 +79,11 @@ type
     Undo1: TMenuItem;
     Selectall1: TMenuItem;
     Tools1: TMenuItem;
-    Numericalintegration1: TMenuItem;
     PopupMenu1: TPopupMenu;
     Cut2: TMenuItem;
     Copy2: TMenuItem;
     Paste2: TMenuItem;
     N3: TMenuItem;
-    Numericalintegration2: TMenuItem;
-    Updatefrominternet1: TMenuItem;
     edithelp: TMenuItem;
     JPLOrbitalelementsconversion1: TMenuItem;
     Saveas1: TMenuItem;
@@ -115,8 +112,6 @@ type
     procedure synedit1StatusChange(Sender: TObject; Changes: TSynStatusChanges);
     procedure Undo1Click(Sender: TObject);
     procedure Selectall1Click(Sender: TObject);
-    procedure Numericalintegration1Click(Sender: TObject);
-    procedure Updatefrominternet1Click(Sender: TObject);
     procedure edithelpClick(Sender: TObject);
     procedure Saveas1Click(Sender: TObject);
     procedure Save1Click(Sender: TObject);
@@ -135,7 +130,7 @@ type
 var
   edit2: Tedit2;
 const
-  errors :array[0..6,0..1] of integer=((0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0)); {contains position of line with errors}
+  errors :array[2..6,0..1] of integer=((0,0),(0,0),(0,0),(0,0),(0,0)); {contains position of line with errors}
 
 
 Const
@@ -316,8 +311,8 @@ end;
 
 procedure Tedit2.FormShow(Sender: TObject);
 begin
-  caption_comet:=striphotkey(mainwindow.Cometdataeditor.caption); {for title editor}
-  caption_asteroid:=striphotkey(mainwindow.Asteroiddataeditor.caption);
+//remove  caption_comet:=striphotkey(mainwindow.Cometdataeditor.caption); {for title editor}
+//remove  caption_asteroid:=striphotkey(mainwindow.Asteroiddataeditor.caption);
   caption_sup1:=striphotkey(mainwindow.Supplement1editor.caption);
   caption_sup2:=striphotkey(mainwindow.Supplement2editor.caption);
   caption_sup3:=striphotkey(mainwindow.Supplement3editor.caption);
@@ -326,19 +321,7 @@ begin
 
   synedit1.font.size:=fontsize_E; {somehow this does not work with Tfont}
   synedit1.font.name:=fontname_E;
-  case editfile of 0: begin
-                        synedit1.text:= cometstring.text;
-                        JPLOrbitalelementsconversion1.Enabled:=true;
-                        synedit1.CaretXY:=xy0;{go to last position}
-                      end;
-                   1: begin;
-                        Numericalintegration1.Enabled:=true;
-                        Numericalintegration2.Enabled:=true;
-                        JPLOrbitalelementsconversion1.Enabled:=true;
-                        synedit1.text:= asteroidstring.text;
-                        synedit1.CaretXY:=xy1;{go to last position}
-                       end; {important make in object inspector lines empty otherwise it does not work}
-                   2: begin
+  case editfile of 2: begin
                         synedit1.text:= supplstring1.text; {important make in object inspector lines empty otherwise it does not work}
                         synedit1.CaretXY:=xy2;{go to last position}
                       end;
@@ -377,62 +360,7 @@ end;
 
 
 
-procedure convert_occult_file;  {2018-3-19}
-var
-    linepos,error1   :integer;
-    date_regel: STRING;
-    List     : TStrings;
-    oldCursor : TCursor;
-begin
-   oldCursor := Screen.Cursor;
-   Screen.Cursor := crHourglass;
-   asteroidstring.text:='';{clearbuffer}
-   linepos:=1;{skip first comment line}
-   List := TStringList.Create;
-   try
-    list.StrictDelimiter:=true;{accept spaces in command but reconstruct since they are split over several parameters}
 
-   with edit2.synedit1 do
-   begin
-       while linepos<lines.count do
-       begin
-          List.Clear;
-          ExtractStrings([','], [], PChar(' '+lines[linepos]),List);{space for lines starting with comma}
-          if list.count>=12 then
-          begin
-            date_regel:=list[2]+' '+leadingzero(strtoint(list[3]))+' '+leadingzero(strtoint(list[4]))+'.000|';
-            asteroidstring.add(
-            copy(list[1]+'              ',1,15)+'|' {1, name}
-            +date_regel
-                  +list[9] +'|'            {9}
-            +copy(list[10]+'  ',1,10)+'|' {10}
-            +copy(list[8]+'  ',1,8)+'|'    {8}
-            +copy(list[7]+'  ',1,9)+'|'    {7}
-            +copy(list[6]+'  ',1,9)+'|'    {6}
-                +'2000|'
-            +copy(list[5]+'  ',1,9)+'|'    {5}
-            +copy(list[11]+' ',1,5)+'|'   {11}
-                 +list[12]+'|');          {12}
-          end;
-          if  frac(linepos/100)=0 then edit2.caption:=Formatfloat('0', linepos)+' asteroids';{show position but not to often otherwise slowdown}
-          inc(linepos);
-       end;
-
-       edit2.synedit1.text:=asteroidstring.Text;{put result back in editor}
-       edit2.synedit1.selStart:= 0;
-       edit2.synedit1.selend:= 0;
-       edit2.synedit1.SelText := ';HNSKY, converted Occult asteroid file, save to make permanent.'+#13+';File source = '+filename+#13+#13+
-                                  ';     Name                yyyymmdd.ddd       e           a [ae]       i         ohm          w     Equinox M-anomaly     H      G'+#13+
-                                  ';-------------------------------------------------------------------------------------------------------------------------------------'+#13;
-       edit2.synedit1.selStart:=0;
-       edit2.synedit1.Selend := 0;
-   end;
-
-   finally
-     List.Free;
-   end;
-   Screen.Cursor := oldCursor;
-end;
 
 //A brief header is given below:
 //Des'n     H     G   Epoch     M        Peri.      Node       Incl.       e            n           a        Reference #Obs #Opp    Arc    rms  Perts   Computer
@@ -448,9 +376,10 @@ end;
 function convert_MPCORB_line(txt : string): string;
 var
   code2           : integer;
-  date_regel      : STRING[5];
+  date_regel      : string[5];
   centuryA,monthA,dayA : string[2];
-  epochA          : STRING[15];
+  epochA          : string[15];
+  designation     : string;
 begin
   date_regel:=copy(txt,21,25-21+1); {21 -  25  a5     Epoch (in packed form, .0 TT), see http://www.minorplanetcenter.net/iau/info/MPOrbitFormat.html}
    //    date_regel:='J9611';
@@ -474,7 +403,12 @@ begin
 
   if ((centuryA='19') or (centuryA='20') or (centuryA='21')) then {do only data}
   begin
-    result:=copy(txt,167,194-167+1)+'|' {name}  {use asteroidsstring as buffer, faster then using lines[linepos]:=}
+    designation:=copy(txt,167,194-167+1);
+    if copy(txt,6,1)<>' ' then //temporary provisional 7 digit designation, add to the name
+    begin
+      designation:=trim(designation)+' ('+copy(txt,1,7)+')'
+    end;
+    result:=designation+'|' {name}  {use asteroidsstring as buffer, faster then using lines[counter]:=}
     +epochA+'|'  {epoch}
     +copy(txt,71,79-71+1)+'|' {71 -  79  f9.7   Orbital eccentricity}
 
@@ -492,93 +426,11 @@ begin
 end;
 
 
-procedure convert_MPCORB_file(nrlines: integer);  {2013/2019}
-var
-    oldCursor : TCursor;
-    linepos   : integer;
-begin
-   oldCursor := Screen.Cursor;
-   Screen.Cursor := crHourglass;
-   linepos:=0;
-   with edit2.synedit1 do
-   begin
-       while ( (linepos<lines.count) and ((linepos<=nrlines) or (length(lines[linepos])<>0))  ) do {stop at empthy line after 353.000 where unnumbered asteroids start, currently around 353000 in 2013}
-       begin
-         asteroidstring.add( convert_MPCORB_line(lines[linepos]));
-
-         if  frac(linepos/100)=0 then edit2.caption:=Formatfloat('0', linepos)+' asteroids';{show position but not to often otherwise slowdown}
-         inc(linepos);
-
-       end;
-
-       edit2.synedit1.text:=asteroidstring.Text;{put result back in editor}
-
-       edit2.synedit1.selStart:= 0;
-       edit2.synedit1.Selend := 0;
-
-       edit2.synedit1.SelText := ';HNSKY, converted Minor-Planet file, save to make permanent.'+#13+';File source = '+filename+#13+';'+#13;
-       edit2.synedit1.selStart:=0;
-       edit2.synedit1.Selend := 0;
-   end;
-   Screen.Cursor := oldCursor;
-end;
-
-
-procedure convert_astorb_file;  {2013, format http://www.naic.edu/~nolan/astorb.html}
-var
-    oldCursor : TCursor;
-    linepos   :integer;
-
-begin
-   oldCursor := Screen.Cursor;
-   Screen.Cursor := crHourglass;
-   asteroidstring.text:='';{clearbuffer}
-   linepos:=0;
-   with edit2.synedit1 do
-   begin
-       while linepos<lines.count do
-       begin
-          asteroidstring.add(copy(lines[linepos],1,26)+'|' {name}  {use asteroidsstring as buffer, faster then using lines[linepos]:=}
-           +copy(lines[linepos],107,8)+'.000'+'|' {Epoch}
-           +copy(lines[linepos],158,11)+'|' {Orbital eccentricity}
-           +copy(lines[linepos],170,12)+'|' {Semimajor axis (AU)}
-           +copy(lines[linepos],148,10)+'|' {Inclination to the ecliptic, J2000.0 (degrees)}
-           +copy(lines[linepos],138,10)+'|' {Longitude of the ascending node, J2000.0  (degrees)}
-           +copy(lines[linepos],127,10)+'|' {Argument of perihelion, J2000.0 (degrees)}
-           +'2000|'                         {equinox}
-           +copy(lines[linepos],116,10)+'|' {Mean anomaly at the epoch, in degrees}
-           +copy(lines[linepos],43,5)+'|'   {Absolute magnitude, H}
-           +copy(lines[linepos],49,5)+'|'); {Slope parameter, G}
-
-          if  frac(linepos/100)=0 then edit2.caption:=Formatfloat('0', linepos)+' asteroids';{show position but not to often otherwise slowdown}
-          inc(linepos);
-       end;
-
-       edit2.synedit1.text:=asteroidstring.Text;{put result back in editor}
-       edit2.synedit1.selStart:= 0;
-       edit2.synedit1.Selend := 0;
-       edit2.synedit1.SelText := ';HNSKY, converted Astorb asteroid file, save to make permanent.'+#13+';File source = '+filename+#13+#13+
-                                  ';     Name                 yyyymmdd.ddd       e           a [ae]       i        ohm       w     Equinox M-anomaly   H      G'+#13+
-                                  ';-------------------------------------------------------------------------------------------------------------------------------------'+#13;
-       edit2.synedit1.selStart:=0;
-       edit2.synedit1.Selend := 0;
-
-   end;
-   Screen.Cursor := oldCursor;
-end;
 
 procedure Tedit2.Load1Click(Sender: TObject);
 begin
   opendialog1.initialdir:=documents_path;
-  case editfile of 0: begin
-                        opendialog1.filename:='hns_com1.cmt';
-                        opendialog1.Filter := 'HNSKY comet file (hns_com1.cmt)|hns_com1.cmt|HNSKY comet files (*.cmt)|*.cmt';
-                      end;
-                   1: begin
-                        opendialog1.filename:='hns_ast1.ast'; //documents_path+'*.ast;*.dat';
-                        opendialog1.Filter := 'Compatible asteroid files (*.ast;*.dat;*.txt;*.csv)|*.ast;mpcorb*.dat;asteroid*.csv;astorb*.dat;*.txt|HNSKY asteroid files (*.ast;)|*.ast|Occult (asteroidelements.csv)|asteroidelements.csv|Minor planet orbital elements (mpcorb*.dat)|mpcorb*.dat|astorb*.dat|astorb*.dat|Export Format for Minor-Planet Orbits (*.txt)|*.txt';
-                      end;
-                   2: begin
+  case editfile of 2: begin
                         opendialog1.filename:=name_supl1;
                         opendialog1.Filter := 'HNSKY supplement files (*.sup)|*.sup|Comma delimited (*.csv)|*.csv';
                       end;
@@ -608,20 +460,12 @@ begin
                       5:name_supl4:={ExtractFileName}(FileName);
                       6:name_supl5:={ExtractFileName}(FileName);
                    end;{case}
+
      with synedit1.Lines do
      begin
        screen.cursor:=crHourglass;
        LoadFromFile(filename);	{ load from file }
-        if uppercase(ExtractFileExt(filename))='.CSV'  then {Occult files}
-          convert_occult_file
-        else
-        if uppercase(ExtractFileName(filename))='ASTORB.DAT'  then {astorb.dat files}
-          convert_astorb_file
-        else
-        if ((uppercase(ExtractFileExt(filename))='.DAT') or (uppercase(ExtractFileEXT(filename))='.TXT'))  then {minor planet MPCORB.DAT}
-          convert_MPCORB_file(100000);
-       {   SaveToFile(ChangeFileExt(FileName, '.BAK'));  }	{ save into backup file }
-        screen.cursor:=crdefault;
+       screen.cursor:=crdefault;
      end;
   end;
 end;
@@ -634,16 +478,7 @@ begin
   savedialog1.filename:=documents_path+'*.sup';
   savedialog1.Filter :='HNSKY supplement files (*.sup)|*.sup|';
 
-  case editfile of 0:
-                     begin
-                       savedialog1.filename:=documents_path+'hns_com1.cmt';
-                       savedialog1.Filter := 'HNSKY comet file (hns_com1.cmt)|hns_com1.cmt';
-                     end;
-                   1:begin
-                       savedialog1.filename:=documents_path+'hns_ast1.ast';
-                       savedialog1.Filter := 'HNSKY asteroid file (hns_ast1.ast)|hns_ast1.ast';
-                     end;
-                   2:begin
+  case editfile of 2:begin
                        if name_supl1<>'' then savedialog1.filename:=documents_path+name_supl1;
                      end;
                    3:begin
@@ -691,14 +526,7 @@ end;
 
 procedure Tedit2.Save1Click(Sender: TObject);
 begin
-  case editfile of 0:
-                     begin
-                       filename:='hns_com1.cmt';
-                     end;
-                   1:begin
-                       filename:='hns_ast1.ast';
-                     end;
-                   2:begin
+  case editfile of 2:begin
                        if name_supl1='' then begin edit2.saveas1click(sender);exit; end
                        else
                        filename:=name_supl1;
@@ -763,17 +591,6 @@ begin
 //  if synedit1.modified then Save1Click(Sender);
 //  synedit1.modified:=false;
   case editfile of
-    0:
-      begin
-        cometstring.clear;  {tstrings}
-        cometstring.text:=synedit1.text;{update cometstring with synedit1}
-        xy0:=synedit1.CaretXY;//store last position
-      end;
-    1:begin
-        asteroidstring.clear;  {tstrings}
-        asteroidstring.text:=synedit1.text;{update cometstring with synedit1}
-        xy1:=synedit1.CaretXY;//store last position
-      end;
     2:begin
         supplstring1.clear;  {tstrings}
         supplstring1.text:=synedit1.text;{update string with synedit1}
@@ -1180,7 +997,6 @@ end;
 Procedure Tedit2.FormActivate(Sender: TObject);
 begin
   markerror(true);
-  updatefrominternet1.enabled:=(editfile<=1);{only for asteroids and comets}
   if language_mode<>0 then load_edit;
 end;
 
@@ -1192,19 +1008,8 @@ begin
   mag:=0;
   markerror(false);
   errors[editfile,1]:=0; {allow error finding}
-  linepos:=0;
+  counter:=0;
   case editfile of
-    0:
-    begin
-      cometstring.clear;  {tstrings}
-      cometstring.text:=synedit1.text;{update cometstring with synedit1}
-      repeat read_comet('T');until mag=999;
-    end;
-    1:begin
-       asteroidstring.clear;  {tstrings}
-       asteroidstring.text:=synedit1.text;{update cometstring with synedit1}
-       repeat read_asteroid('T');until mag=999;
-      end;
     2:begin {supplement 1}
         supplstring1.clear;  {tstrings}
         supplstring1.text:=synedit1.text;{update string with synedit1}
@@ -1260,9 +1065,7 @@ var  sx,sy:string;
     str(edit2.synedit1.CaretX:6 {selstart},sx);
     str(edit2.synedit1.CaretY:10 {selstart},sy);
 
-    case editfile of 0: edit2.caption:=caption_comet +':  hns_com1.cmt'+ sy+':'+sx;
-                     1: edit2.caption:=caption_asteroid +':  hns_ast1.ast'+ sy+':'+sx;
-                     2: edit2.caption:=caption_sup1+':  '+name_supl1+ sy+':'+sx;
+    case editfile of 2: edit2.caption:=caption_sup1+':  '+name_supl1+ sy+':'+sx;
                      3: edit2.caption:=caption_sup2+':  '+name_supl2+ sy+':'+sx;
                      4: edit2.caption:=caption_sup3+':  '+name_supl3+ sy+':'+sx;
                      5: edit2.caption:=caption_sup4+':  '+name_supl4+ sy+':'+sx;
@@ -1280,175 +1083,10 @@ begin
   synedit1.SelectAll;
 end;
 
-//;                     yyyy mm dd.ddd    e        a [ae]     i       ohm         w     [yyyy]             H     G    next time
-
-procedure Read_Asteroid_line;{read asteroid line}
-var
-  x,y,z           : byte;
-  fout            :    integer;
-  regel,data1 :  string[255];
-  skip                                                   : boolean;
-
-begin
-  repeat {until fout is 0}
-    repeat
-      if linepos+1>edit2.synedit1.lines.count then begin linepos:=9999999; exit;end;{end of tstrings}
-      regel:=edit2.synedit1.lines[linepos];
-      skip:=((regel[1]=';') or (length(regel)<=20));
-      if skip then inc(linepos);
-    until skip=false;
-    x:=1; z:=0; fout:=0;
-    repeat
-      Y:=0;
-      while ((regel[x]<>'|') and (x<=ord(regel[0]))) do {get ra}
-      begin
-        if regel[x]<>' ' then begin inc(y); data1[Y]:=regel[x]; end;{remove spaces}
-        inc(x);
-      end;
-      data1[0]:=ansichar(y);{set length correct}
-      inc(z); {new datafeld}
-      case z of
-               1: begin {names}
-                     {ast1.name:=data1; without  spaces}
-                     ast1.name:=copy(regel,1,x-1);{with spaces}
-                  end;
-               2: begin val(data1[1]+data1[2]+data1[3]+data1[4],ast1.YEAR,fout);{year}
-                        if fout=0 then val(data1[5]+data1[6],ast1.month,fout);{month}
-                        if fout=0 then val(data1[7]+data1[8]+data1[9]+data1[10]+data1[11]+data1[12],ast1.day,fout);end; {dd.dddd}
-               3: begin val(data1,ast1.ecc,fout);end;
-               4: begin val(data1,ast1.sma,fout);end;
-               5: begin val(data1,ast1.inc,fout);end;
-               6: begin val(data1,ast1.loa,fout);end;
-               7: begin val(data1,ast1.aop,fout);end;
-               8: begin val(data1,ast1.eqn,fout);end;{equinox}
-               9: begin val(data1,ast1.ma,fout);end;
-              10: begin val(data1,ast1.h,fout);end;
-              11: begin val(data1,ast1.g,fout);end;
-      end;
-      inc(x);
-    until ((z>=11) or (fout<>0));
-
-    if ((fout<>0) {including outside area} and (errors[1,0]=0)) then  {error marking}
-         begin errors[1,0]:=linepos; errors[1,1]:=z;  end;
-
-    inc(linepos);
-  until (fout=0);  {when regel is not ok repeat until regel is ok.   }
-end;
-
-
-procedure Tedit2.Numericalintegration1Click(Sender: TObject);
-var
-   line_end, sellength, sel_length2 :integer;
-   Save_Cursor          : TCursor;
-
-begin
-  Save_Cursor := Screen.Cursor;
-  Screen.Cursor := crHourglass;    { Show hourglass cursor }
-  edit2.highlighter.clearalltokens;
-  errors[1,1]:=0; {FOR ERROR COLOROURING}
-  with edit2.synedit1 do
-  begin
-    linepos:=BlockBegin.y-1; {start line}
-    line_end:=BlockEnd.y-1; {last line}
-    if blockend.x<=5 then dec(line_end);
-
-    sellength:=selend-selstart;
-    if (sellength=0) then {no selection}
-    begin
-      linepos:=0;
-      line_end:=Lines.count-1;
-    end;
-
-    Sel_length2:=0;{start at zero and calculate new length}
-    while linepos<=line_end do
-    begin
-      Read_Asteroid_line;{asteroid database search at position linepos}
-
-      if linepos<9999999 then
-      lines[linepos-1]:=ast1.name+'|'+
-                                      NUMINT_ASTEROID(ast1.year,ast1.month,ast1.day, ast1.SMA, ast1.ECC,ast1.INC,ast1.LOA, ast1.AOP, ast1.MA, ast1.eqn, year2, month2, day2+hour2/24, 2000)+{calculates new  orbital elements  for  asteroids}
-                                      '|'+formatfloat('0.00',ast1.h)+'|'+formatfloat('0.00',ast1.g);
-      sel_length2:=sel_length2+length(lines[linepos-1])+1; {calculate new length}
-      edit2.Highlighter.AddToken(linepos+1,length(lines[linepos-1]),Attr_blue);{make blue}
-    end;
-    selStart:=0;
-    Selend := 0;
-    SelText :=';HNSKY: Numerical integration of perturbed minor planets applied. For new epoch accurate orbital parameters calculated. Save to make permanent'+#13+#10+';'+#13+#10;
-  end;
-  Screen.Cursor :=Save_Cursor;{back to normal }
-end;
-
-
-procedure Tedit2.Updatefrominternet1Click(Sender: TObject);
-var
-   success2,mpc: boolean;
-begin
-  success2:=true;
-
-  case editfile of
-   0:begin
-       mpc:=pos('Soft06Cmt',internet_comet)=0; {https://minorplanetcenter.net/iau/MPCORB/CometEls.txt}
-       if mpc then {mpc format, https://minorplanetcenter.net/iau/MPCORB/CometEls.txt}
-       begin
-         success2:=DownloadFile(internet_comet,documents_path+'CometEls.txt');
-         if success2 then success2:=convert_mpc_comet_diskfile(documents_path+'CometEls.txt');
-         if success2 then synedit1.text:=cometstring.text;{update editor}
-       end
-      else {TheSKY format, http://www.minorplanetcenter.net/iau/Ephemerides/Comets/Soft06Cmt.txt}
-      begin
-        success2:=DownloadFile(internet_comet,documents_path+'hns_com1.cmt');
-        if success2 then
-        begin
-          synedit1.Lines.LoadFromFile(documents_path+'hns_com1.cmt');{ load from file }
-          edit2.synedit1.lines.Insert(0,';Updated and saved. Source Soft06Cmt.txt');
-          edit2.synedit1.lines.Insert(1,';                                       Equinox    Peri-    Peri-      Eccen-    Argument   Longitude Orbit     Abs. Actv.  Second');
-          edit2.synedit1.lines.Insert(2,';                                       of         helion   helion     tricity   of         of the    incli     magn.        name');
-          edit2.synedit1.lines.Insert(3,';                                       orbital    epoch    distance             perihelion ascending nation');
-          edit2.synedit1.lines.Insert(4,';                                       elements                                            node');
-          edit2.synedit1.lines.Insert(5,';');
-          edit2.synedit1.lines.Insert(6,';                                      [yyyy]yyyymmdd.dddd   q [ae]       e        w         ohm          i     H0    k');
-          edit2.synedit1.lines.Insert(7,';--------------------------------------+----+--------------+----------+---------+---------+---------+---------+-----+-----+----------');
-        end;
-      end;
-    end;
-    1:begin
-         mpc:=pos('.DAT',internet_asteroid)>0;
-         if mpc then
-         begin
-           success2:=DownloadFile(internet_asteroid,documents_path+'mpcorb_temp.dat');
-           if success2 then success2:=convert_mpcorb_diskfile(documents_path+'mpcorb_temp.dat');
-           if success2 then synedit1.text:=asteroidstring.text;{update editor}
-         end
-         else
-         begin
-           success2:=DownloadFile(internet_asteroid,documents_path+'hns_ast1.ast');
-           if success2 then
-           begin
-             synedit1.Lines.LoadFromFile(documents_path+'hns_ast1.ast');	{ load from file }
-             edit2.synedit1.lines.Insert(0,';Updated and saved.');
-             edit2.synedit1.lines.Insert(1,';                                                                                                                   The following letter');
-             edit2.synedit1.lines.Insert(2,';                                                                                                                   is none relevant. Used');
-             edit2.synedit1.lines.Insert(3,';Asteroid name            Epoch       Eccen-     Semi     Orbit   Longitude Argument Equinox Mean      Abs.  Magn   by HNSKY internally');
-             edit2.synedit1.lines.Insert(4,';                                     tricity    major    incli   of the      of       of    anomoly   magn. slope  for skipping faint asteroids.');
-             edit2.synedit1.lines.Insert(5,';                                                axis     nation  ascending  peri-   orbital                 para-  Magnitude range  [A..Z]');
-             edit2.synedit1.lines.Insert(6,';                                                                  node     helion   elements                meter            equals [0..25]');
-             edit2.synedit1.lines.Insert(7,';                                                                                                                   will be overwritten');
-             edit2.synedit1.lines.Insert(8,';                     yyyy mm dd.ddd    e        a [ae]     i       ohm         w     [yyyy]             H     G    next time');
-             edit2.synedit1.lines.Insert(9,';--------------------+--------------+----------+--------+--------+---------+---------+-----+----------+-----+-----');
-           end;
-         end;
-       end;
-    end;
-    if success2=false then edit2.synedit1.lines.Insert(0,';Error download');
-end;
 
 procedure Tedit2.edithelpClick(Sender: TObject);
 begin
-  case editfile of 0: open_file_with_parameters(help_path,'#comet_format');
-                   1: open_file_with_parameters(help_path,'#asteroid_format');
-           2,3,4,5,6: open_file_with_parameters(help_path,'#supplements');
-                end;
-
+  open_file_with_parameters(help_path,'#supplements');
 end;
 
 end.

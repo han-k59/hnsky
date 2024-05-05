@@ -1,5 +1,5 @@
 unit hns_main;
-{Copyright (C) 1997,2023 by Han Kleijn, www.hnsky.org
+{Copyright (C) 1997,2024 by Han Kleijn, www.hnsky.org
  email: han.k.. at...hnsky.org}
 
 {This program is free software: you can redistribute it and/or modify
@@ -75,7 +75,6 @@ type
     alt_m1: Tstatictext;
     flipped1: TStaticText;
     Animation1: TMenuItem;
-    Asteroiddataeditor: TMenuItem;
     Azimuthalequidistant1: TMenuItem;
     Boundaries1: TMenuItem;
     Centreon1: TMenuItem;
@@ -83,7 +82,6 @@ type
     Clearmarkers1: TMenuItem;
     Clearmarkers2: TMenuItem;
     Colorchange1: TMenuItem;
-    cometdataeditor: TMenuItem;
     connect_telescope1: TMenuItem;
     Constellations1: TMenuItem;
     ControlBar1: TControlBar;
@@ -440,7 +438,6 @@ type
     procedure Databases1Click(Sender: TObject);
     procedure GotoRADEC1Click(Sender: TObject);
     procedure cometdataeditorClick(Sender: TObject);
-    procedure AsteroiddataeditorClick(Sender: TObject);
     procedure GridRADEC1click(Sender: TObject);
     procedure Timer1Timer(Sender: TObject);
     procedure Showclock1Click(Sender: TObject);
@@ -575,7 +572,7 @@ Procedure open_file(link:string);{Open file. Doesn't work for parameters}
 procedure open_file_with_parameters(filelink,parameters2:string);{does work for parameters}
 procedure update_button_hints;{copy mainmenu hints and objectmenu hints to buttons}
 procedure load_cursors;
-function DownloadFile(SourceFile, DestFile: string): Boolean;{2013, download files from internet}
+function downloadFile(SourceFile, DestFile: string): Boolean;{2013, download files from internet}
 procedure loadcomet;{2013}
 procedure loadasteroid;{2013}
 
@@ -690,8 +687,6 @@ const
   name_supl4     : string ='';
   name_supl5     : string ='';
   name_toast     : string ='';
-  name_com1      : string[12] ='hns_com1.cmt';
-  name_ast1      : string[12] ='hns_ast1.ast';
 
   ascom_driver    : widestring ='ASCOM.Simulator.Telescope';
   ascom_mount_capability:integer=0; {2= async slew, 1 slew, 0 no slew}
@@ -756,10 +751,9 @@ const
   about_title  : string= 'About HNSKY for macOS:';
   {$ENDIF}
 
-  about_message0 :string=
-             'Hallo_Northern_SKY is © 1998, 2023 by Han Kleijn, license GPL3+, www.hnsky.org'+
+  about_message0 :string='Hallo_Northern_SKY is © 1998, 2024 by Han Kleijn, license GPL3+, www.hnsky.org'+
      #13+#10+
-     #13+#10+'Version 4.2.15f, dated 2023-11-21';
+     #13+#10+'Version 4.3.0, dated 2024-05-02';
 
   about_message1 :string=
      'Send a message if you like this free program.';
@@ -1101,9 +1095,50 @@ const
   found_velocity: double=0;//comets & asteroids
   found_velocity_pa: double=0;//comets & asteroids
   found_velocity_str:string='none';//comets & asteroids, make something for GET_TARGET requests prior to a find}
+  best_month: string='';
 
 type
    image_array = array of array of array of single;
+   Tasteroid =  record
+                  desn    : string[7]; //fixed size for disk storage
+                  name    : string[28];//fixed size for disk storage
+                  yy,mm   : integer;//year month
+                  dd,   // day
+                  M_anomaly,
+                  aop,  // argument of perihelion, J2000.0 (degrees)
+                  ohm,
+                  inc,  // inclination in degrees, J2000.0 (degrees)
+                  ecc,  // ecc
+                  sma,  // semimajor axis (AU)
+                  H,
+                  G,
+                  calc_magn, // magnitude calculated within 0.25 day of the current time
+                  calc_jd    // julian day when cal_magn was calculated
+                  : double
+                end;
+   Tasteroid_array = array of Tasteroid;
+
+
+
+   Tcomet =   record
+                  name      : string[28];// fixed size for disk storage
+                  reference : string[9]; // fixed size for disk storage
+                  yy,mm     : integer;// year month
+                  dd, //day
+
+                  q,    // Perihelion distance (AU)
+                  ecc,  // Orbital eccentricity
+                  aop,  // Argument of perihelion, J2000.0 (degrees)
+                  lan,  // Longitude of the ascending node, J2000.0 (degrees)
+                  inc,  // Inclination in degrees, J2000.0 (degrees)
+                  h,    // Absolute magnitude
+                  g,
+                  calc_magn, // magnitude calculated within 0.25 day of the current time
+                  calc_jd    // julian day when cal_magn was calculated
+                  : double //Slope  parameter
+                end;
+   Tcomet_array = array of Tcomet;
+
 var
   img_loaded : image_array;  {for plot_fits}
   jovian_distance  : array[1..4] of double; {distance jovian moons=(6.0,6.1,6.2,6.3);}
@@ -1176,13 +1211,11 @@ var
   auto_zoom         : boolean;
   slewto            : boolean;
 
-  linepos, lineposcatalog   : integer;
+  counter, lineposcatalog   : integer;
   worldmap     : boolean; {is supplement worldmap}
 
-  deepstring,cometstring ,asteroidstring,supplstring1,supplstring2,
-  supplstring3,supplstring4,supplstring5, catalogstring,foundstring1 : Tstrings;
+  deepstring, supplstring1,supplstring2, supplstring3,supplstring4,supplstring5, catalogstring,foundstring1 : Tstrings;
   editfile    : integer; {which file in editor}
-  update_mag  : boolean; {update magnitude of asteroids at end of line due to change in date. See getdatatime and read asteroid procedure}
   dss_path,dss_search  : string;{fits path}
   documents_path       : string;{my documents of documents}
   cache_path           : string;{my documents of documents}
@@ -1222,6 +1255,9 @@ var
                           font  : array[0..max_markers] of integer;
                           name  : array[0..max_markers] of string;
                         end;
+  asteroids : Tasteroid_array;
+  comets    : Tcomet_array;
+
 
 implementation
 
@@ -1501,7 +1537,6 @@ var
   {$ifdef unix}
   {$endif}
 begin
-  update_mag:=true; {recalculate asteroid magnitude}
   if (gtime)  then {getDate(year2,m,d,dow)}
   begin
     {$ifdef mswindows}
@@ -1601,13 +1636,13 @@ begin
   repeat {until fout is 0}
 
     {check if level is completed. The deepsky data base is split in three magnitude sorted sections }
-    completed_level1:=((deepsky_level=1) and (linepos>=position_deep2));  {level 1 completed}
-    completed_level2:=((deepsky_level=2) and (linepos>=position_deep3));  {level 2 completed}
+    completed_level1:=((deepsky_level=1) and (counter>=position_deep2));  {level 1 completed}
+    completed_level2:=((deepsky_level=2) and (counter>=position_deep3));  {level 2 completed}
 
     if (
        ( (searchmode<>'T') and ((completed_level1) or (completed_level2)) )
         or
-       (linepos>=deepstring.count)
+       (counter>=deepstring.count)
        )
     then
     begin
@@ -1615,8 +1650,8 @@ begin
       exit;
     end;
 
-    regel:=deepstring.strings[linepos]; {using regel,is faster then deepstring.strings[linepos]}
-    inc(linepos);
+    regel:=deepstring.strings[counter]; {using regel,is faster then deepstring.strings[counter]}
+    inc(counter);
     x:=1; z:=0; y:=0;
 
     P1 := Pointer(regel);
@@ -1669,9 +1704,9 @@ begin
                      else
                        if ((mag2>deepnr-30/zoom) and (searchmode<>'T')) then
                        begin
-                         if ((deepsky_level =2) and (linepos<position_deep2)) then linepos:=position_deep2 {go to second section deep sky database}
+                         if ((deepsky_level =2) and (counter<position_deep2)) then counter:=position_deep2 {go to second section deep sky database}
                          else
-                         if ((deepsky_level>=3) and (linepos<position_deep3)) then linepos:=position_deep3 {go to third section deep sky database}
+                         if ((deepsky_level>=3) and (counter<position_deep3)) then counter:=position_deep3 {go to third section deep sky database}
                          else
                          inc(mode);{go to next step}
                        end;
@@ -2380,206 +2415,117 @@ end;
 
 
 procedure read_comet(searchmode:char);{comet database search, improved 2015 unicode version}
-var
-  x,y,z, fout  :    integer;
-  regel:  string;//[255];
-  data1 : array[0..255] of widechar;
-  c_year, c_month : integer;
-  c_d,c_ecc,c_q,c_inc2,c_lan,c_aop,c_teqx0,c_g,c_k :double; {new comet var}
-  skip                                             : boolean;
-
 begin
   repeat {until mag is ok}
-    repeat {until fout is 0}
-      repeat
-        if linepos+1>cometstring.count then
-                     begin inc(mode);
-                         mag:=999; {999=skip plotting of last comets when nothing plotted}
-                         exit;
-                     end;{end of tstrings}
-        regel:=cometstring.strings[linepos];
-        if ((linepos=0) and (length(regel)>=3) and (ord(regel[1])>128)) then delete(regel,1,3);{first three charactors should not be ther, bug FPC?}
-        skip:=( (length(regel)<=20) or (regel[1]=';'));
-        if skip then inc(linepos);
-      until skip=false;
+    if counter>=length(comets) then  begin inc(mode); mag:=999; {999=skip plotting} exit;end;{end of array}
 
-      x:=1; z:=0; fout:=0;
-      repeat  {remove many spaces, 10 % faster routine when many spaces. Not used for supplements and deepsky database }
-        Y:=0;
-        while ((x<=length(regel)) and (regel[x]<>'|')) do {get ra}
-        begin
-           if regel[x]<>' ' then begin data1[Y]:=regel[x]; inc(y); end;{no spaces}
-           inc(x);
-        end;
-        data1[y]:=ansichar(#0);
-        inc(z); {new data field}
-        case z of
-               1: begin
-                    naam2:=data1;naam3:='';
-                  end;
-               2: begin val(data1,c_teqx0,fout);end;{equinox}
-               3: begin val(data1[0]+data1[1]+data1[2]+data1[3],c_YEAR,fout);{year}
-                        if fout=0 then val(data1[4]+data1[5],c_month,fout);{month}
-                        if fout=0 then val(copy(data1,7,y-6),c_d,fout);{dd.dddd or dd.ddd}
-                  end;
-               4: begin val(data1,c_q,fout);end;
-               5: begin val(data1,c_ecc,fout);end;
-               6: begin val(data1,c_aop,fout);end;
-               7: begin val(data1,c_lan,fout);end;
-               8: begin val(data1,c_inc2,fout);end;
-               9: begin val(data1,c_g,fout);end;
-              10: begin val(data1,c_k,fout);end;
-              11: begin
-                    naam3:=data1;
-                  end;
-              end;
-              inc(x);
-      until ((z>=11) or (fout<>0));
+    if ((comets[counter].calc_magn*10<=deepnr-30/zoom) or  (abs(comets[counter].calc_jd-julian_ET)>0.25 {0.25 day passed, time to recalculate magnitude for filtering})  or (searchmode in ['T','P'])) then
+    begin //pre filtered on old calculated magnitudes
 
-      if ((fout<>0) {including outside area} and (errors[0,1]=0)) then {error marking}
-      begin
-        errors[0,0]:=linepos;
-        errors[0,1]:=z;
+      try {important compiler setting  "Do not stop on delphi exceptions"}
+        comet(sun200_calculated,2000,julian_ET,comets[counter].yy,comets[counter].mm,comets[counter].dd,comets[counter].ecc,comets[counter].q,comets[counter].inc,
+                                     comets[counter].lan, comets[counter].aop,2000,{var} ra2,dec2,delta,sun_delta);
+        // Hale-Bopp
+        // Q:= 0.890521; Perihelion distance q in AU;
+        // ECC:= 0.99492999999999998; Eccentricity e
+        // INC:= 88.987200000000001; Inclination i
+        // LAN:= 283.36720000000003;  Longitude of the ascending node
+        // AOP:= 130.62989999999999;  Argument of perihelion}
+
+      except
+        mainwindow.statusbar1.caption:=('With comet '+naam2+' floating point problems !');
       end;
 
-      inc(linepos);
-    until (fout=0);  {when regel is not ok repeat until regel is ok.   }
+      mag:=comets[counter].H+ ln(delta)*5/ln(10)+ comets[counter].g*2.5*ln(sun_delta)/ln(10) ; //note k:=2.5*g
+                              {log(x) = ln(x)/ln(10)}
+     {size some practical values : mag 7.5 ==> 15'
+                                       8   ==>  5'
+                                       9.5 ==>  5'
+                                      11.5      2'
+                                      10.7      3'
+                                      13.0==>   2'
+                                      13.5==>   1.5'
+                             see S&W 1-98 seite 66}
+      if isNan(mag) then //overload
+                mag:=99999999;
 
-    try {important compiler setting  "Do not stop on delphi exceptions"}
-      comet(sun200_calculated,2000,julian_ET,c_year,c_month,c_d,c_ecc,c_q,c_inc2,c_lan,c_aop,c_teqx0,ra2,dec2,delta,sun_delta);
-    except
-      mainwindow.statusbar1.caption:=('With comet '+naam2+' floating point problems !');
-    end;
+      length2:=60*60*power(2.7,-0.3144*mag); {estimated using curve fitting in Excel.}
+      if ((objectmenu.neo_only1.checked) and (delta>0.05)) then mag:=99999999;{skip none neo's}
 
-    mag:=c_g+ ln(delta)*5/ln(10)+ c_k*ln(sun_delta)/ln(10) ;
-                            {log(x) = ln(x)/ln(10)}
-   {size some practical values : mag 7.5 ==> 15'
-                                     8   ==>  5'
-                                     9.5 ==>  5'
-                                    11.5      2'
-                                    10.7      3'
-                                    13.0==>   2'
-                                    13.5==>   1.5'
-                           see S&W 1-98 seite 66}
-    if isNan(mag) then //overload
-              mag:=99999999;
+      comets[counter].calc_magn:=mag;//store magnitude
+      comets[counter].calc_jd:=julian_ET;//stored JD used. For checking if magnitude is still valid
 
-    length2:=60*60*power(2.7,-0.3144*mag); {estimated using curve fitting in Excel.}
-    if ((objectmenu.neo_only1.checked) and (delta>0.05)) then mag:=99999999;{skip none neo's}
+    end //pre filtered on old calculated magnitudes
+    else
+      mag:=999;//continue looping
+
+    inc(counter);
+
   until ( ((mag*10<=deepnr-30/zoom) and (length2>=min_size2))   or (searchmode in ['T','P']));
+
+  naam2:=comets[counter-1].name;
+  naam3:=comets[counter-1].reference;
 end;
 
-procedure read_asteroid(searchmode:char);{asteroid database search}
+
+procedure read_asteroid(searchmode:char);{asteroid database search. Reads one line of asteroidstring with enough magnitude}
 var
-  x,y,z, fout : integer;
-   regel       : string;
-   data1 : array[0..255] of widechar;
-  a_year,a_month:integer;
-  a_d,a_ecc,a_a,a_inc2,a_lan,a_aop,a_teqx0,a_anm: double; {new comet var}
   c_q, c_epochdelta,diameter_A,degrees_to_perihelion     : double;
-  skip                                                   : boolean;
 const
-  a_h                   : single =0;
-  asteroid_slope_factor : single =0.15;
   Gauss_gravitational_constant: double=0.01720209895*180/pi;
-begin     {read  one line of asteroidstring with enough magnitude}
+begin
+
   repeat {until mag is ok}
-    repeat {until fout is 0}
-     repeat
-       if linepos>asteroidstring.count-1 then
-         begin inc(mode);update_mag:=false; mag:=999; {999=skip plotting of last comets when nothing plotted} exit;end;{end of tstrings}
-       regel:=asteroidstring.strings[linepos];
-       if ((linepos=0) and (length(regel)>=3) and (ord(regel[1])>128)) then delete(regel,1,3);{first three charactors should not be ther, bug FPC?}
-       if ((update_mag=false) and (length(regel)>=20)) then mag{X}:=(ord(regel[length(regel)-1])-65) + 0.1*(ord(regel[length(regel)])-48) else mag{X}:=0;{up to date magnitude}
-         {note mag is expresses in A....Z}
-       skip:=(((mag*10 {X}>deepnr) and (searchmode<>'T')) or (length(regel)<=20) or (regel[1]=';'));
-       if skip then inc(linepos);
-     until skip=false;
-     x:=1; z:=0; fout:=0;
-     repeat {remove many spaces, 10% faster routine when many spaces. Not used for supplements and deepsky database }
-       Y:=0;
-       while ((x<=length(regel)) and (regel[x]<>'|')) do {get ra}
-       begin
-         if regel[x]<>' ' then begin data1[Y]:=regel[x]; inc(y); end;{no spaces}
-         inc(x);
-       end;
-       data1[y]:=ansichar(#0);
-       inc(z); {new datafeld}
-       case z of
-               1: begin {names}
-                    naam2:=data1;naam3:='';
-                  end;
-               2: begin
-                       val(data1[0]+data1[1]+data1[2]+data1[3],a_YEAR,fout);{year, faster then copy(...}
-                        if fout=0 then val(data1[4]+data1[5],a_month,fout);{month}
-                        if fout=0 then val(data1[6]+data1[7]+data1[8]+data1[9]+data1[10]+data1[11],a_d,fout); end; {dd.ddd}
-               3: begin val(data1,a_ecc,fout);end;{Eccentricity}
-               4: begin val(data1,a_a,fout);end; {SemiMj Axis, (a)}
-               5: begin val(data1,a_inc2,fout);end;{Inclination (i)}
-               6: begin val(data1,a_lan,fout);end;
-               7: begin val(data1,a_aop,fout);end;
-               8: begin val(data1,a_teqx0,fout);end;{equinox}
-               9: begin val(data1,a_anm,fout);end;
-              10: begin val(data1,a_h,fout);end;
-              11: begin val(data1,asteroid_slope_factor,fout);end;
-       end;
-       inc(x);
-     until ((z>=11) or (fout<>0));
+    if counter>=length(asteroids) then  begin inc(mode); mag:=999; {999=skip plotting} exit;end;{end of array}
 
-     if ((fout<>0) {including outside area} and (errors[1,1]=0)) then  {error marking}
-       begin errors[1,0]:=linepos; errors[1,1]:=z;end;
+    if ((asteroids[counter].calc_magn*10<=deepnr-30/zoom) or  (abs(asteroids[counter].calc_jd-julian_ET)>0.25 {0.25 day passed, time to recalculate magnitude for filtering})  or (searchmode in ['T','P'])) then
+    begin //pre filtered on old calculated magnitudes
+      try
+       {convert to comet elements}
+        c_q := asteroids[counter].sma * ( 1 - asteroids[counter].ecc); {semi-minor axis (q) or perihelion}
 
-     inc(linepos);
-   until (fout=0);  {when regel is not ok repeat until regel is ok.   }
+        {find days to nearest perihelion date}
+        if asteroids[counter].m_anomaly>180 then degrees_to_perihelion:=360-asteroids[counter].m_anomaly {future perihelion is nearer}
+                     else degrees_to_perihelion:=-asteroids[counter].m_anomaly;   {past perihelion is nearer}
 
-   try
-    {convert to comet elements}
-    c_q := a_a * ( 1 - a_ecc); {semi-minor axis (q) or perihelion}
+        c_epochdelta:=degrees_to_perihelion /(Gauss_gravitational_constant /( asteroids[counter].sma * sqrt( asteroids[counter].sma ) ));{days to nearest perihelion date}
 
-    {find days to nearest perihelion date}
-    if a_anm>180 then degrees_to_perihelion:=360-a_anm {future perihelion is nearer}
-                 else degrees_to_perihelion:=-a_anm;   {past perihelion is nearer}
+        comet(sun200_calculated,2000,julian_ET,asteroids[counter].yy,asteroids[counter].mm,asteroids[counter].dd+c_epochdelta,asteroids[counter].ecc,
+                                     c_q,asteroids[counter].inc,asteroids[counter].ohm,asteroids[counter].aop,2000,{var} ra2,dec2,delta,sun_delta);
 
-     c_epochdelta:=degrees_to_perihelion /(Gauss_gravitational_constant /( a_a * sqrt( a_a ) ));{days to nearest perihelion date}
-     comet(sun200_calculated,2000,julian_ET,a_year,a_month,a_d+c_epochdelta,a_ecc,c_q,a_inc2,a_lan,a_aop,a_teqx0,ra2,dec2,delta,sun_delta);
-   except
-     mainwindow.statusbar1.caption:=('With asteroid '+naam2+' floating point problems !');
-   end;
+      except
+        mainwindow.statusbar1.caption:=('With asteroid '+naam2+' floating point problems !');
+      end;
 
+      diameter_A:=(1329/sqrt(0.15 {albedo}))* EXP(-0.2*asteroids[counter].h{absolute magnitude}*LN(10));{2013, estimated diameter in KM based on H=absolute  magnitude}  {power :=EXP(tweedevar*LN(eerstevar))}
+                                                                                     {source http://www.physics.sfasu.edu/astro/asteroids/sizemagnitude.html, D:=(1329/sqrt(albedo))*10^-0.2*H}
+      length2:=((1/delta)* diameter_A * (360*60*60/ (pi*2*AE)));{2013 diameter in acrsec} {ae has been fixed to the value 149597870.700 km as adopted by the International Astronomical Union in 2012}
+      mag:=asteroids[counter].h + ln(delta*sun_delta)*5/ln(10);  {log(x) = ln(x)/ln(10)}
+      phase:=illum_comet; { Get phase comet. Only valid is comet routine is called first.}
+      mag:=mag+asteroid_magn_comp(asteroids[counter].g,phase);
 
-   diameter_A:=(1329/sqrt(0.15 {albedo}))* EXP(-0.2*a_h{absolute magnitude}*LN(10));{2013, estimated diameter in KM based on H=absolute  magnitude}  {power :=EXP(tweedevar*LN(eerstevar))}
-                                                                                   {source http://www.physics.sfasu.edu/astro/asteroids/sizemagnitude.html, D:=(1329/sqrt(albedo))*10^-0.2*H}
-   length2:=((1/delta)* diameter_A * (360*60*60/ (pi*2*AE)));{2013 diameter in acrsec} {ae has been fixed to the value 149597870.700 km as adopted by the International Astronomical Union in 2012}
+      {slope factor =0.15
+      angle object-sun-earth of 0   => 0   magnitude
+                              5      0.42
+                             10      0.65
+                             15      0.83
+                             20      1}
+      asteroids[counter].calc_magn:=mag;//store magnitude
+      asteroids[counter].calc_jd:=julian_ET;//stored JD used. For checking if magnitude is still valid
 
+      if ((objectmenu.neo_only1.checked) and (delta>0.05)) then mag:=99999999;{skip none neo's}
 
+    end //pre filtered on old calculated magnitudes
+    else
+      mag:=999;//continue looping
 
-   if update_mag then
-   begin
-     mag:=a_h+ ln(delta*sun_delta)*5/ln(10);  {log(x) = ln(x)/ln(10)}
-
-     phase:=illum_comet; { Get phase comet. Only valid is comet routine is called first.}
-     mag:=mag+asteroid_magn_comp(asteroid_slope_factor,phase);
-
-   {slope factor =0.15
-    angle object-sun-earth of 0   => 0   magnitude
-                             5      0.42
-                            10      0.65
-                            15      0.83
-                            20      1}
-
-
-    setlength(regel,x+1);{set length such that 3 characters are available after data}
-    regel[x-1]:='|';
-    mag:=round(10*mag)/10;
-    regel[x]:= char(trunc(mag)+65);{magnitude in A..Z scale equals 0..25};
-    regel[x+1]:=char(round(10*frac(mag)+ord('0')));{magnitude  fraction equal 0.0 .. 0.9};
-
-   // if mag>15 then asteroidstring.strings[linepos-1]:=';'+regel else
-    asteroidstring.strings[linepos-1]:=regel;{magnitude in A0..Z9 scale}
-  end;
-  if ((objectmenu.neo_only1.checked) and (delta>0.05)) then mag:=99999999;{skip none neo's}
-
+    inc(counter);
   until ((mag*10<=deepnr-30/zoom) or (searchmode in ['T','P']));
+
+  naam2:=asteroids[counter-1].name;
+  naam3:=asteroids[counter-1].desn;
+
+
 end;
 
 {Asteroid Ceres(1) Epoch of elements: 1993 01 13.000
@@ -2607,37 +2553,37 @@ begin
   repeat {until fout is 0}
     repeat
       case sup of 1: begin
-                       if linepos+1>supplstring1.count then
+                       if counter+1>supplstring1.count then
                        begin
                        inc(mode);mag:=999; {999=skip plotting of last comets when nothing plotted}
                        exit;
                        end;{end of tstrings}
-                       regel:=supplstring1.strings[linepos];
+                       regel:=supplstring1.strings[counter];
                      end;
                   2: begin
-                       if linepos+1>supplstring2.count then
+                       if counter+1>supplstring2.count then
                        begin inc(mode);mag:=999; {999=skip plotting of last comets when nothing plotted} exit;end;{end of tstrings}
-                       regel:=(supplstring2.strings[linepos]) {pack greek letters from unicode in one byte};
+                       regel:=(supplstring2.strings[counter]) {pack greek letters from unicode in one byte};
                      end;
                   3: begin
-                       if linepos+1>supplstring3.count then
+                       if counter+1>supplstring3.count then
                        begin inc(mode);mag:=999; {999=skip plotting of last comets when nothing plotted} exit;end;{end of tstrings}
-                       regel:=(supplstring3.strings[linepos]) {pack greek letters from unicode in one byte};
+                       regel:=(supplstring3.strings[counter]) {pack greek letters from unicode in one byte};
                      end;
                   4: begin
-                       if linepos+1>supplstring4.count then
+                       if counter+1>supplstring4.count then
                        begin inc(mode);mag:=999; {999=skip plotting of last comets when nothing plotted} exit;end;{end of tstrings}
-                       regel:=(supplstring4.strings[linepos]) {pack greek letters from unicode in one byte};
+                       regel:=(supplstring4.strings[counter]) {pack greek letters from unicode in one byte};
                      end;
                   5: begin
-                       if linepos+1>supplstring5.count then
+                       if counter+1>supplstring5.count then
                        begin inc(mode);mag:=999; {999=skip plotting of last comets when nothing plotted} exit;end;{end of tstrings}
-                       regel:=(supplstring5.strings[linepos]) {pack greek letters from unicode in one byte};
+                       regel:=(supplstring5.strings[counter]) {pack greek letters from unicode in one byte};
                      end;
                   end;
-      if ((linepos=0) and  (length(regel)>=3) and (ord(regel[1])>128) ) then delete(regel,1,3);{first three charactors should not be there, bug FPC?}
+      if ((counter=0) and  (length(regel)>=3) and (ord(regel[1])>128) ) then delete(regel,1,3);{first three charactors should not be there, bug FPC?}
       skip:=((length(regel)<=5) or (regel[1]=';'));
-      if skip then inc(linepos);
+      if skip then inc(counter);
     until skip=false;
     x:=1; z:=0; y:=0;fout:=0;
     repeat
@@ -2788,7 +2734,7 @@ begin
                           dec2:=mars_dec+width2*(pi/180)/3600;
                         end;
 
-                        linepos:=99999999; {stop any further reading}
+                        counter:=99999999; {stop any further reading}
                       end
                       else fout:=fout or $1000;{mark as outside area}
                     end;
@@ -2801,10 +2747,10 @@ begin
 
     if (((fout and $0FFF)<>0) {including outside area} and (errors[sup+1,1]=0){no error found yet}) then {error marking}
     begin
-      errors[sup+1,0]:=linepos;
+      errors[sup+1,0]:=counter;
       errors[sup+1,1]:=z;
     end;
-    inc(linepos);
+    inc(counter);
   until (fout=0);  {when regel is not ok repeat until regel is ok.   }
 end;
 
@@ -3944,13 +3890,13 @@ begin
            -4 : begin skip:=true; {no action after this}
                       type2:='';{for mode'A'}
                       planetnr:=-1;{do not re-calculate for riseset}
-                      if ( ((comets_activated<>0) or (searchmode='T')) and (cometstring<>nil)) then begin linepos:=0;type2:=comet_string;descrip2:=Comet_string;inc(mode);{readposition:=0;} errors[0,1]:=0;{FOR ERROR COLOROURING} end else inc(mode,2);{jump to asteroids} end;
+                      if ( ((comets_activated<>0) or (searchmode='T')) and (length(comets)>0)) then begin counter:=0;type2:=comet_string;descrip2:=Comet_string;inc(mode); end else inc(mode,2);{jump to asteroids} end;
            -3 : begin
                   read_comet(searchmode);
                   if mode=-2 then  skip:=true;;
                 end;
            -2 : begin skip:=true;; {no action after this}
-                      if ( ((asteroids_activated<>0) or (searchmode='T')) and (asteroidstring<>nil)) then begin linepos:=0;type2:=asteroid_string;descrip2:=Asteroid_string; inc(mode);{readposition:=0;} errors[1,1]:=0;{FOR ERROR COLOROURING} end else inc(mode,2);{jump to supplements} end;
+                      if ( ((asteroids_activated<>0) or (searchmode='T')) and (length(asteroids)>0)) then begin counter:=0;type2:=asteroid_string;descrip2:=Asteroid_string; inc(mode); end else inc(mode,2);{jump to supplements} end;
            -1 : begin {asteroids}
                   read_asteroid(searchmode);
                   if mode=0 then skip:=true; {leave, next time suppl1}
@@ -3963,23 +3909,23 @@ begin
     begin   {mode -3=comet, -1=asteroids,  1=suppl1, 3=suppl2,.. 9=suppl5,  11=deepsky, 12,13 ...stars}
       case mode of
           0: begin skip:=true; {no action after this} if ((suppl1_activated<>0) or (searchmode='T')) then
-               begin inc(mode);linepos:=0; {readposition:=0;} errors[1+1,1]:=0;{FOR ERROR COLOROURING, before skip}worldmap:=pos('WORLD',Uppercase(name_supl1))>0;end
+               begin inc(mode);counter:=0; {readposition:=0;} errors[1+1,1]:=0;{FOR ERROR COLOROURING, before skip}worldmap:=pos('WORLD',Uppercase(name_supl1))>0;end
                else inc(mode,2);{jump to second suppl} end; { for suppplement }
           1: read_supplement(searchmode,1); {supplement1 }
           2: begin skip:=true; {no action after this} if ((suppl2_activated<>0) or (searchmode='T')) then
-                begin inc(mode);linepos:=0; {readposition:=0;} errors[2+1,1]:=0;{FOR ERROR COLOROURING, before skip}worldmap:=pos('WORLD',Uppercase(name_supl2))>0;end
+                begin inc(mode);counter:=0; {readposition:=0;} errors[2+1,1]:=0;{FOR ERROR COLOROURING, before skip}worldmap:=pos('WORLD',Uppercase(name_supl2))>0;end
                   else inc(mode,2);{jump to deepsky} end; { for suppplement }
           3: read_supplement(searchmode,2); {supplement2 }
           4: begin skip:=true; {no action after this} if ((suppl3_activated<>0) or (searchmode='T')) then
-                   begin inc(mode);linepos:=0;{ readposition:=0;} errors[3+1,1]:=0;{FOR ERROR COLOROURING, before skip}worldmap:=pos('WORLD',Uppercase(name_supl3))>0;end
+                   begin inc(mode);counter:=0;{ readposition:=0;} errors[3+1,1]:=0;{FOR ERROR COLOROURING, before skip}worldmap:=pos('WORLD',Uppercase(name_supl3))>0;end
                    else inc(mode,2);{jump to deepsky} end; { for suppplement }
           5: read_supplement(searchmode,3); {supplement1 }
           6: begin skip:=true; {no action after this} if ((suppl4_activated<>0) or (searchmode='T')) then
-                   begin inc(mode);linepos:=0; {readposition:=0;} errors[4+1,1]:=0;{FOR ERROR COLOROURING, before skip}worldmap:=pos('WORLD',Uppercase(name_supl4))>0;end
+                   begin inc(mode);counter:=0; {readposition:=0;} errors[4+1,1]:=0;{FOR ERROR COLOROURING, before skip}worldmap:=pos('WORLD',Uppercase(name_supl4))>0;end
                    else inc(mode,2);{jump to deepsky} end; { for suppplement }
           7: read_supplement(searchmode,4); {supplement1 }
           8: begin skip:=true; {no action after this} if ((suppl5_activated<>0) or (searchmode='T')) then
-                   begin inc(mode);linepos:=0; {readposition:=0;} errors[5+1,1]:=0;{FOR ERROR COLOROURING, before skip}worldmap:=pos('WORLD',Uppercase(name_supl5))>0;end
+                   begin inc(mode);counter:=0; {readposition:=0;} errors[5+1,1]:=0;{FOR ERROR COLOROURING, before skip}worldmap:=pos('WORLD',Uppercase(name_supl5))>0;end
                    else inc(mode,2);{jump to deepsky} end; { for suppplement }
           9: read_supplement(searchmode,5); {supplement1 }
 
@@ -3988,7 +3934,7 @@ begin
                descrip2:='';
                if ( ((deep_database<>0) or (searchmode='T')) and (deepstring<>nil)) {always text search in standard database}
                  then begin
-                        inc(mode); linepos:=2; {first lines are comments}
+                        inc(mode); counter:=2; {first lines are comments}
                       end
                       else inc(mode,2);{jump to stars} end;
          11: read_deepsky(searchmode); {deepsky}
@@ -4730,7 +4676,6 @@ var
   ss_string                  : string;
   width,height               : String[8];
   xxx,yyy, alt9,az9          : double;
-
 begin
   selectfont2(dc2);{font selection before textcolors}
   settextcolor(dc2.handle,colors[0]); {000000}
@@ -4784,6 +4729,9 @@ begin
   end;
   if  actualtime=true then  drive_status:=drive_status+'    '+refresh_rate_string+' '+inttostr(timestep)+'s';
 
+  //best month in winter time
+  best_month:=',    👀='+inttostr(trunc(1 {make range 1..12}+fnmodulo((ra2*6/pi)-3.3    + 0.5 * (timezone{+daylight_saving}){time zone correction in months}  + longitude*12/360 {longitude correction in months}  ,12 {12 months})));
+
   if ((found>0) and (animation_running=0)) then
   begin
     if found=2 then
@@ -4792,7 +4740,7 @@ begin
   else
   begin
 
-    {=====centre altitude, azimuth====}
+    {=====center altitude, azimuth====}
     ep(2000,equinox_date,ra2,dec2,xxx,yyy); {convert to actual ra,dec for current date !!}
     ra_az(xxx,yyy,reallatitude,0, wtime2actual,az9,alt9); {viewx, viewy could normally be used but give big error if north is true and latitude=90 and <> reallatitude}
     if apparent_horizon<>0 then  alt9:=altitude_apparent(alt9); {refraction at atmosphere, max 34 minutes near horizon}
@@ -4809,7 +4757,8 @@ begin
       str(az9*180/pi:4:0,ss_string); {azimuth}
       report_azalt.az:=ss_string;{give azimuth in degrees, font position is top/left coordinates}
     end;
-   {end =====centre altitude, azimuth====}
+
+   {end =====center altitude, azimuth====}
 
     if equinox<>2000 then
     begin
@@ -5157,7 +5106,12 @@ begin
 
         if ((constbound1875[dia,0]<>-2) and (steps<>0)) then {plot line or move to if steps is large enough}
         begin
-          for i:=1 to abs(steps) do  {this only working well with orginal equinox 1875  !!!}
+          for i:=1 to abs(steps) do  {this only working well with original equinox B1875  !!!}
+          //2024-4-24: I experimented with the constellation boundaries in J2000. Unfortunately there is practical problem. The boundaries are drawn (in HNSKY in small steps depending on zoom factor ) but the straight lines become bent.
+          //See screenshot below. There is also a remark in the code that it was only working well in Equinox B1875. I coded this probably 28 years ago. In my code the conversion to J2000 is done for each small step.
+          //See screenshot. The blue dotted is the existing 1875 implementation with equinox conversion for each step. The orange is and experimental using the J2000 positions. I think the reason is that the original boundaries
+          //where perfect aligned with the RA, DEC lines but thay are not with the J2000 RA, DEC lines. If you start to calculate the intermediate points in J2000 you do not get straight lines because your crossing a sphere.
+          //So I think you better use the B1875 positions.
           begin
             ep(1875,2000,(oldra1875+(step_ra)*i/abs(steps))*pi/12000,(olddec1875+(-olddec1875+dec1875)*i/abs(steps))*pi/18000,ra2000,dec2000);
             plot_pixel_sphere(dc1,ra2000,dec2000,-1,$FFFFFF,0,0)
@@ -5171,7 +5125,8 @@ begin
         oldra1875:=ra1875;
         olddec1875:=dec1875;
       end;
-    end;
+    end;//boundaries
+
   end; {zoom<150}
 
   if cross>0 then {cross-hair or pointing circle}
@@ -5771,8 +5726,6 @@ var
   x_longword  : longword;
   x_single    : single absolute x_longword;{for conversion 32 bit "big-endian" data}
 
-  thefile,thepath  : string;
-  success :boolean;
 const
   end_record: boolean=false;
 
@@ -6703,9 +6656,7 @@ begin
   selectobject(dc.handle,brushCOMET); {brush after textcolor. Check with VIC if this solves problem}
   length2:=0;
   mag:=999; {999=skip plotting of last comets when nothing plotted}
-  linepos:=0;
-  //readposition:=0;
-  errors[0,1]:=0;{FOR ERROR COLOROURING}
+  counter:=0;
   mode:=-5;
   name_all:=((comets_activated=2) and (naming>-99999));{name all in mode 2 but not when animation makes tracks, see plot_solartracks(canvas2:tcanvas);}
   repeat
@@ -6765,9 +6716,7 @@ begin
   selectobject(dc.handle,brushCOMET);
 
   mag:=999; {999=skip plotting of last comets when nothing plotted}
-  linepos:=0;
-//  readposition:=0;
-  errors[1,1]:=0; {FOR ERROR COLOROURING}
+  counter:=0;
   name_all:=((asteroids_activated=2) and (naming>-99999));{name all in mode 2 but not when animation makes tracks, see plot_solartracks(canvas2:tcanvas);}
   mode:=-3;
   repeat
@@ -6946,7 +6895,7 @@ var
 begin
 //    startTick := gettickcount64;
 
-  linepos:=0; {of supplstring}
+  counter:=0; {of supplstring}
   errors[SUP+1,1]:=0;{FOR ERROR COLOROURING}
   if sup=1 then worldmap:=pos('WORLD',Uppercase(name_supl1))>0 else
   if sup=2 then worldmap:=pos('WORLD',Uppercase(name_supl2))>0  else
@@ -7100,7 +7049,7 @@ begin
        end;
 
        if label_all_lines then {edit mode function}
-         naam2:=inttostr(linepos);
+         naam2:=inttostr(counter);
 
        if ((brightn=-1) or (label_all_lines))  then {RA/DEC line mode or label}
        selectfont1(dc){underline}
@@ -7143,7 +7092,7 @@ begin
 //  startTick := gettickcount64;
   selectfont1(dc);
   mag2:=0;
-  linepos:=2; {first lines are comments}
+  counter:=2; {first lines are comments}
   mode:=11;
   repeat
     read_deepsky('S');{deepsky database search, screen mode}
@@ -7542,7 +7491,7 @@ end;
 
 procedure find_line(dc:tcanvas);{find line or deepsky object from supplement 2}
 begin
-  linepos:=2; {first lines are comments}
+  counter:=2; {first lines are comments}
   mode:=2;{this will be increased at the end of the supplement}
   repeat  {find line position in supplement 2}
     read_supplement('M',2); {supplement2 }
@@ -7550,7 +7499,7 @@ begin
   until ( (mode>2) or  ((zc>0) and ( abs(mx-x9)<5 ) and ( abs(my-y9)<5))   ); //allow and object to be moved 2020-10-22 removed and (brightn<0){=line}
   if mode=2 then {something found}
   begin
-    cut_position:=linepos-1;
+    cut_position:=counter-1;
     message_canvas(x9,y9,clred,'✓');{set selected marker}
   end
   else
@@ -7664,20 +7613,20 @@ begin
      mode:=5;
      oldmag:=0;
      counter:=0;
-     linepos:=2; {first lines are comments}
+     counter:=2; {first lines are comments}
      perc20:=round(0.20*count);{For old databases, if no dip is found at about 13% then stop}
      repeat
        read_deepsky('T');{deepsky1 database search, text mode}
        if mag2<oldmag-10 then {Dip of 1 magnitude or larger, reached a new section}
        begin
          inc(counter);
-         if counter=1 then position_deep2:=linepos-1
+         if counter=1 then position_deep2:=counter-1
          else
-         if counter=2 then position_deep3:=linepos-1;
+         if counter=2 then position_deep3:=counter-1;
 
        end;
        oldmag:=mag2;
-     until ((mode>5) or (counter>=2) or (linepos>perc20){stop searching for dip});
+     until ((mode>5) or (counter>=2) or (counter>perc20){stop searching for dip});
      if position_deep2>9999999 then position_deep2:=round(0.01*count);
      if position_deep3>9999999 then position_deep3:=round(0.10*count);
   end;
@@ -7685,39 +7634,63 @@ end;
 
 
 procedure loadcomet;
+var
+  vFile:TFileStream;
+  nrrecords : integer;
+  afilename : string;
 begin
-  with cometstring do
+  afilename:=documents_path+'hns_cmt.cmt';
+  if fileexists(aFilename) then
   begin
-     try
-     LoadFromFile(documents_path+'hns_com1.cmt');	{ load from file }
-     except;
-       {action none}
-       clear;
-       cometstring.add(Not_available); {for seletcted databases info}
-       cometfile_age:=Not_available; {2013}
-       exit;
-     end;
+    vFile := TFileStream.Create(aFilename, fmOpenReadWrite or fmShareExclusive);
+    try
+      vFile.Seek(0,0);
+      nrrecords:=vFile.Size div  SizeOf(tcomet);
+      SetLength(comets, nrrecords );
+      vFile.Read(comets[Low(comets)], nrrecords*SizeOf(tcomet){recalculate for safety});
+    finally
+      vFile.Free;
+    end;
+    cometfile_age:=DateTimeToStr(FileDateToDateTime(FileAge(documents_path+'hns_cmt.cmt')));
+  end
+  else
+  begin
+    comets:=nil;
+    cometfile_age:='---';
   end;
-  cometfile_age:=DateTimeToStr(FileDateToDateTime(FileAge(documents_path+'hns_com1.cmt')));
 end;
 
-
+{load them all in single read operation}
 procedure loadasteroid;
+var
+  vFile:TFileStream;
+  nrrecords : integer;
+  afilename : string;
 begin
-  with asteroidstring do
+  afilename:=documents_path+'hns_ast.ast';
+  if fileexists(aFilename) then
   begin
-     try
-     LoadFromFile(documents_path+'hns_ast1.ast');	{ load from file }
-     except;
-       {action none}
-        clear;
-        asteroidstring.add(Not_available);
-        asteroidfile_age:=Not_available;{2013}
-        exit;{2013}
-     end;
+    vFile := TFileStream.Create(aFilename, fmOpenReadWrite or fmShareExclusive);
+    try
+      vFile.Seek(0,0);
+      nrrecords:=vFile.Size div  SizeOf(tasteroid);
+      SetLength(asteroids, nrrecords );
+      vFile.Read(asteroids[Low(asteroids)], nrrecords*SizeOf(tasteroid){recalculate for safety});
+    finally
+      vFile.Free;
+    end;
+    if nrrecords>0 then asteroidfile_age:=formatfloat('0000',asteroids[0].yy)+'-'+formatfloat('00',asteroids[0].mm)+ '-'+formatfloat('00',asteroids[0].dd);
+  end
+  else
+  begin
+    asteroids:=nil;
+    asteroidfile_age:='---';
   end;
-  asteroidfile_age:=DateTimeToStr(FileDateToDateTime(FileAge(documents_path+'hns_ast1.ast')));
 end;
+
+
+
+
 
 procedure loadsupplement1;
 begin
@@ -8312,14 +8285,13 @@ Begin
      set_dds_bandpass_menu;
 
   get_str(internet_simbad,'internet_simbad2');
-  get_str(internet_leda,'internet_leda2');
+  get_str(internet_leda,'internet_leda');
   get_str(internet_ned,'internet_ned');
   get_str(vizier_server,'internet_vizier');
 
-  get_str(internet_asteroid,'internet_asteroid2');
+  get_str(internet_asteroid,'internet_asteroid3');
   get_str(asteroids_maxnr,'asteroids_maxnr');
-  get_str(asteroids_maxmagn,'asteroids_maxmagn');
-  get_str(internet_comet,'internet_comet');
+  get_str(internet_comet,'internet_comet3');
 
   name_star:=initstring.Values['name_star'];
   name_deep:=initstring.Values['name_deep'];
@@ -8678,15 +8650,14 @@ begin
   initstring.Values['internet_mast']:=internet_mast;
 
   initstring.Values['internet_simbad2']:=internet_simbad;
-  initstring.Values['internet_leda2']:=internet_leda;
+  initstring.Values['internet_leda']:=internet_leda;
   initstring.Values['internet_ned']:=internet_ned;
   initstring.Values['internet_vizier']:=vizier_server;
 
-  initstring.Values['internet_asteroid2']:=internet_asteroid;
-  initstring.Values['internet_comet']:=internet_comet;
+  initstring.Values['internet_asteroid3']:=internet_asteroid;
+  initstring.Values['internet_comet3']:=internet_comet;
 
   initstring.Values['asteroids_maxnr']:=asteroids_maxnr;
-  initstring.Values['asteroids_maxmagn']:=asteroids_maxmagn;
 
 
   initstring.Values['indi_telescope']:=INDI_telescope_name;
@@ -8997,10 +8968,8 @@ begin
   deepstring := Tstringlist.Create;
   loaddeep; {load deep in stringlisting}
 
-  cometstring := Tstringlist.Create;
   loadcomet; {load comet in stringlisting}
-  asteroidstring := Tstringlist.Create;
-  loadasteroid; {load asteroid in stringlisting}
+  loadasteroid;
   supplstring1 := Tstringlist.Create;
   supplstring2 := Tstringlist.Create;
   supplstring3 := Tstringlist.Create;
@@ -9059,8 +9028,7 @@ begin
   delete_penbrush;
 
   deepstring.free;{free deepsky}
-  cometstring.free;{free comets}
-  asteroidstring.free;{free comets}
+
   supplstring1.free;{free suppl1}
   supplstring2.free;{free suppl2}
   supplstring3.free;
@@ -9160,11 +9128,7 @@ begin
     oldtelescopePt := Point(telescopePt.x, telescopePt.y);	{ record point for next move }
 
     mainwindow.image1.canvas.Pen.Mode := pmCopy;
-
   end;
-
-
-
 end;
 
 
@@ -9503,6 +9467,7 @@ begin
 end;
 
 
+
 procedure tmainwindow.maakplaatje(canvas2:tcanvas;polarscope:boolean);
 var i       : integer;
     old_RAm,old_DECM: double;
@@ -9637,8 +9602,8 @@ begin
   else
     planet(0,2000,julian_ET,ra2,dec2,mag,length2,delta,phase,phi);{alway calculate sun position, otherwise problems}
 
-  if ((comets_activated<>0) and (cometstring<>nil)) then begin plot_COMETS(canvas2);   end;
-  if ((asteroids_activated<>0) and (asteroidstring<>nil))  then begin plot_ASTEROIDS(canvas2);  end;
+  if ((comets_activated<>0) and (length(comets)>0)) then begin plot_COMETS(canvas2);   end;
+  if ((asteroids_activated<>0) and (length(asteroids)>0))  then begin plot_ASTEROIDS(canvas2);  end;
   if moon_covers_stars=0 then {before comets}
   begin
     if planets_activated<>0 then plot_PLANETS2(true,canvas2);{moon}
@@ -11315,17 +11280,6 @@ begin
   paint_sky; {rewrite window }
 end;
 
-procedure Tmainwindow.AsteroiddataeditorClick(Sender: TObject);
-begin
-  editfile:=1;
-  edit2:=Tedit2.Create(self); {in project option not loaded automatic}
-  edit2.ShowModal;
-  edit2.release;
-  update_mag:=true; {recalculate asteroid magnitude since data could be changed}
-  missedupdate:=2; {rewrite window}
-  paint_sky; {rewrite window }
-end;
-
 
 procedure inverse_intensity_color(incolor:integer;out outcolor:integer);{keep color=hue but inverse intensity. By Han Kleijn}
 {The HSB model is based on the human perception of color. In the HSB model, all colors are described in terms of three fundamental characteristics:
@@ -11426,6 +11380,7 @@ begin
   paint_sky; {rewrite window }
 end;
 
+
 procedure Tmainwindow.Printwindowblacksky1Click(Sender: TObject);
 begin
   Printwindowwhitesky1Click(Sender);
@@ -11435,7 +11390,7 @@ procedure Tmainwindow.Timer1Timer(Sender: TObject);
 var
   mon,day,hou,mi,sec  : STRING[2];
   year3               : STRING[4];
-  active_file_settings,JPL_DE  : string;
+  active_file_settings,JPL_DE : string;
   {$ifdef mswindows}
   SystemTime: tSystemTime;
   {$else}
@@ -11507,10 +11462,10 @@ begin
    {$endif}
     if de430_loaded then JPL_DE:=',    DE' else JPL_DE:='';
     mainwindow.caption:=active_file_settings +'Hallo Northern Sky   '+
-                   year3+'-'+mon+'-'+day+'  '+hou+':'+mi+':'+sec+telescope_position+drive_status+JPL_DE+',   '+stardatabase_displayed_naam;
+                   year3+'-'+mon+'-'+day+'  '+hou+':'+mi+':'+sec+telescope_position+drive_status+JPL_DE+',   '+stardatabase_displayed_naam+best_month;
   end
   else
-    mainwindow.caption:=active_file_settings+'Hallo Northern Sky   '+telescope_position+drive_status ;
+    mainwindow.caption:=active_file_settings+'Hallo Northern Sky   '+telescope_position+drive_status+',   '+stardatabase_displayed_naam+best_month ;
 
   {$ifdef mswindows}
   if ((actualtime) and  (frac( (systemtime.wsecond+systemtime.wminute*60)/timestep)=0) ) then

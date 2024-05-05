@@ -20,7 +20,7 @@ Interface
 
 Const
 
-{Bright star name)}
+{Bright star name}
 Bright_star_name : array[0..67] of ansistring=
   (('Sirius'),{SAO-151881}
   ('Canopus'),{SAO-234480}
@@ -234,75 +234,75 @@ Bright_star_pos : array[0..67,0..1] of single=
   (3.88719158,-0.27993389));{Zuben_Elgenubi}{SAO-158840}
 
   {Bright star position}
-  {Bright_star_pos : array[0..67,0..1] of integer=  {RA [0..24000],Dec [-9000..9000] }
-  {({(6752,-1671),{Sirius SAO-151881}
-  {(6399,-5269),{Canopus SAO-234480}
-  {(18616,3878),{Vega SAO-67174}
-  {(14660,-6083),{Alpha Centauri SAO-252838}
-  {(5278,4600),{Capella SAO-40186}
-  {(14261,1918),{Arcturus SAO-100944}
-  {(5242,-820),{Rigel SAO-131907}
-  {(7655,522),{Procyon SAO-115756}
-  {(5920,741),{Betelgeuse SAO-113271}
-  {(1629,-5723),{Achernar SAO-232481}
-  {(19846,887),{Altair SAO-125122}
-  {(14064,-6037),{Hadar SAO-252582}
-  {(4599,1651),{Aldebaran SAO-94027}
-  {(16490,-2643),{Antares SAO-184415}
-  {(20691,4528),{Deneb SAO-49941}
-  {(7755,2803),{Pollux SAO-79666}
-  {(10140,1197),{Regulus SAO-98967}
-  {(13420,-1116),{Spica SAO-157923}
-  {(22961,-2962),{Fomalhaut SAO-191524}
-  {(12795,-5969),{Mimosa SAO-240259}
-  {(7577,3189),{Castor SAO-60198}
-  {(12519,-5711),{Gacrux SAO-240019}
-  {(12443,-6310),{Acrux SAO-251904}
-  {(12900,5596),{Alioth SAO-28553}
-  {(5438,2861),{El Nath SAO-77168}
-  {(5419,635),{Bellatrix SAO-112740}
-  {(5604,-120),{Alnilam SAO-132346}
-  {(17560,-3710),{Shaula SAO-208954}
-  {(8375,-5951),{Avior SAO-235932}
-  {(9220,-6971),{Miaplacidus SAO-250495}
-  {(3405,4986),{Mirphak SAO-38787}
-  {(13792,4931),{Alkaid SAO-44752}
-  {(6629,1640),{Alhena SAO-95912}
-  {(8159,-4733),{Regor SAO-219504}
-  {(16811,-6902),{Atria SAO-253700}
-  {(11062,6175),{Dubhe SAO-15384}
-  {(2322,-297),{Mira SAO-129825}
-  {(5679,-194),{Alnitak SAO-132444}
-  {(6378,-1795),{Mirzam SAO-151428}
-  {(7140,-2639),{Wezen SAO-173047}
-  {(18403,-3438),{Kaus Australis SAO-210091}
-  {(17622,-4300),{Sargas SAO-228201}
-  {(2530,8926),{Polaris SAO-308}
-  {(5992,4495),{Menkalinan SAO-40750}
-  {(140,2909),{Alpheratz SAO-73765}
-  {(17582,1256),{Rasalhague SAO-102932}
-  {(20427,-5673),{Peacock SAO-246574}
-  {(14845,7416),{Kochab SAO-8102}
-  {(2120,2346),{Hamal SAO-75151}
-  {(15578,2671),{Alphekka  SAO-83893}
-  {(11818,1457),{Denebola SAO-99809}
-  {(5796,-967),{Saiph SAO-132542}
-  {(9460,-866),{Alphard SAO-136871}
-  {(726,-1798),{Diphda SAO-147420}
-  {(14111,-3637),{Menkent SAO-205188}
-  {(22137,-4696),{Al Nair SAO-230992}
-  {(153,5915),{Caph SAO-21133}
-  {(675,5654),{Schedar SAO-21609}
-  {(21736,988),{Enif SAO-127029}
-  {(5533,-30),{Mintaka SAO-132220}
-  {(438,-4230),{Ankaa SAO-215093}
-  {(10333,1984),{Algieba SAO-81298}
-  {(23079,1521),{Markab SAO-108378}
-  {(17173,-1572),{Sabik SAO-160332}
-  {(3038,409),{Menkar SAO-110920}
-  {(12263,-1754),{Gienah SAO-157176}
-  {(18350,-2983),{Nunki SAO-186681}
-  {(14848,-1604)); {Zuben Elgenubi SAO-158840}
+  //Bright_star_pos : array[0..67,0..1] of integer=  RA [0..24000],Dec [-9000..9000]
+  //((6752,-1671),{Sirius SAO-151881}
+  //(6399,-5269),{Canopus SAO-234480}
+  //(18616,3878),{Vega SAO-67174}
+  //(14660,-6083),{Alpha Centauri SAO-252838}
+  //(5278,4600),{Capella SAO-40186}
+  //(14261,1918),{Arcturus SAO-100944}
+  //(5242,-820),{Rigel SAO-131907}
+  //(7655,522),{Procyon SAO-115756}
+  //(5920,741),{Betelgeuse SAO-113271}
+  //(1629,-5723),{Achernar SAO-232481}
+  //(19846,887),{Altair SAO-125122}
+  //(14064,-6037),{Hadar SAO-252582}
+  //(4599,1651),{Aldebaran SAO-94027}
+  //(16490,-2643),{Antares SAO-184415}
+  //(20691,4528),{Deneb SAO-49941}
+  //(7755,2803),{Pollux SAO-79666}
+  //(10140,1197),{Regulus SAO-98967}
+  //(13420,-1116),{Spica SAO-157923}
+  //(22961,-2962),{Fomalhaut SAO-191524}
+  //(12795,-5969),{Mimosa SAO-240259}
+  //(7577,3189),{Castor SAO-60198}
+  //(12519,-5711),{Gacrux SAO-240019}
+  //(12443,-6310),{Acrux SAO-251904}
+  //(12900,5596),{Alioth SAO-28553}
+  //(5438,2861),{El Nath SAO-77168}
+  //(5419,635),{Bellatrix SAO-112740}
+  //(5604,-120),{Alnilam SAO-132346}
+  //(17560,-3710),{Shaula SAO-208954}
+  //(8375,-5951),{Avior SAO-235932}
+  //(9220,-6971),{Miaplacidus SAO-250495}
+  //(3405,4986),{Mirphak SAO-38787}
+  //(13792,4931),{Alkaid SAO-44752}
+  //(6629,1640),{Alhena SAO-95912}
+  //(8159,-4733),{Regor SAO-219504}
+  //(16811,-6902),{Atria SAO-253700}
+  //(11062,6175),{Dubhe SAO-15384}
+  //(2322,-297),{Mira SAO-129825}
+  //(5679,-194),{Alnitak SAO-132444}
+  //(6378,-1795),{Mirzam SAO-151428}
+  //(7140,-2639),{Wezen SAO-173047}
+  //(18403,-3438),{Kaus Australis SAO-210091}
+  //(17622,-4300),{Sargas SAO-228201}
+  //(2530,8926),{Polaris SAO-308}
+  //(5992,4495),{Menkalinan SAO-40750}
+  //(140,2909),{Alpheratz SAO-73765}
+  //(17582,1256),{Rasalhague SAO-102932}
+  //(20427,-5673),{Peacock SAO-246574}
+  //(14845,7416),{Kochab SAO-8102}
+  //(2120,2346),{Hamal SAO-75151}
+  //(15578,2671),{Alphekka  SAO-83893}
+  //(11818,1457),{Denebola SAO-99809}
+  //(5796,-967),{Saiph SAO-132542}
+  //(9460,-866),{Alphard SAO-136871}
+  //(726,-1798),{Diphda SAO-147420}
+  //(14111,-3637),{Menkent SAO-205188}
+  //(22137,-4696),{Al Nair SAO-230992}
+  //(153,5915),{Caph SAO-21133}
+  //(675,5654),{Schedar SAO-21609}
+  //(21736,988),{Enif SAO-127029}
+  //(5533,-30),{Mintaka SAO-132220}
+  //(438,-4230),{Ankaa SAO-215093}
+  //(10333,1984),{Algieba SAO-81298}
+  //(23079,1521),{Markab SAO-108378}
+  //(17173,-1572),{Sabik SAO-160332}
+  //(3038,409),{Menkar SAO-110920}
+  //(12263,-1754),{Gienah SAO-157176}
+  //(18350,-2983),{Nunki SAO-186681}
+  //(14848,-1604)); {Zuben Elgenubi SAO-158840}
 
 
 type
@@ -316,7 +316,7 @@ type
 const
   constellation_length=602;
   Constellation : array[0..constellation_length] of const_star=
-  {constellation lines and bayer letter
+  {constellation lines and bayer letter}
   {Format: -2=start/ -1=draw,RA [0..24000],Dec [-9000..9000], bayer letter}
   ((dm:-2;ra:140;dec:2909;bay:'α'),   {Alpha And} {0}
   (dm:-1;ra:655;dec:3086;bay:'δ'),   {Delta And} {0}
@@ -570,7 +570,7 @@ const
   (dm:-1;ra:7755;dec:2803;bay:'β'), {Beta Gem} {37}
   (dm:-1;ra:7577;dec:3189;bay:'α'),  {Alpha Gem} {37}
   (dm:-1;ra:6732;dec:2513;bay:'ε'),   {Epsilon Gem} {37}
-  (dm:-1;ra:6383;dec:2251;bay:'μ'), {Mu Gem {37}
+  (dm:-1;ra:6383;dec:2251;bay:'μ'), {Mu Gem} {37}
   (dm:-1;ra:6248;dec:2251;bay:'η'),  {Eta Gem} {37}
   (dm:-2;ra:21899;dec:-3737;bay:'γ'),  {Gamma Gru} {38}
   (dm:-1;ra:22488;dec:-4350;bay:'δ'),  {Delta 1 Gru} {38}
@@ -1016,11 +1016,11 @@ const
   (9337,-4851),      {'Vela',}
   (13343,-349),      {'Virgo',}
   (7659,-6939),      {'Volans',}
-  (20367,2503));     {'Vulpecula'));
+  (20367,2503));     {'Vulpecula'));}
 
 
 
-{Constellation_name)}
+{Constellation_name}
 Constname : array[0..88] of ansistring=
   (('Andromeda'),
   ('Antlia'),
@@ -1206,11 +1206,10 @@ Constshortname : array[0..88] of pchar=
 
 
 Constbound1875 : array[0..879,0..2] of smallint=
-  {   Constellation boundary lines equinox B1875 !!!!     Version 2007
+  {   Constellation boundary lines equinox B1875 !!!!   Version 2007
       Format:   Move=-2/Draw=-1,Right Ascension,Declination
-                Right ascension is decimal hours * 1000),
-                Declination is decimal degrees * 100)}
-
+                Right ascension is decimal hours * 1000 [0..24000),
+                Declination is decimal degrees * 100  [-18000..+18000])}
   ((-2,7667,-8250),{1,-1,7:40:00,82:30:00,7.666667,-82.500000}
   (-1,13667,-8250),{2,-1,13:40:00,82:30:00,13.666667,-82.500000}
   (-1,13667,-7500),{3,-1,13:40:00,75:00:00,13.666667,-75.000000}
@@ -2091,6 +2090,7 @@ Constbound1875 : array[0..879,0..2] of smallint=
   (-1,2567,3675),{878,1,2:34:00,36:45:00,2.566667,36.750000}
   (-1,2567,3400),{879,1,2:34:00,34:00:00,2.566667,34.000000}
   (-1,2717,3400));{880,1,2:43:00,34:00:00,2.716667,34.000000}
+
 
 greekalph : array[0..24] of pchar=
   (('   '),

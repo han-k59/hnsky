@@ -267,22 +267,12 @@ begin {asteroids1}
   filterstr:=prepare_filter(edit1.text);
   listbox1.Clear; { empty the list of any old values }
   with  listbox1.Items do
-  for i:=0 to asteroidstring.count-1 do
+  for i:=0 to length(asteroids)-1 do
   begin
-    regel:=asteroidstring.strings[i];
-    if pos(';',regel)=0 then
-    begin
-      x:=1;
-      Y:=0;
-      while ((x<=length(regel)) and (regel[x]<>'|')) do
-      begin
-       if regel[x]<>' ' then  begin name9[y]:=regel[x];inc(y);  end;{no spaces}
-       inc(x);
-      end;
-      name9[y]:=ansichar(#0);{set length correct}
-      if  ((length(filterstr)=0) or (pos(filterstr,uppercase(name9))>0)) then  Add(name9);
-    end;
+    name9:=asteroids[i].name;
+   if  ((length(filterstr)=0) or (pos(filterstr,uppercase(name9))>0)) then  Add(name9);
   end;
+
   edit1.text:='';{clear filtering}
   ActiveControl:=listbox1;{set focus on listbox1 text window}
   Screen.Cursor := oldCursor;
@@ -390,21 +380,10 @@ begin {comets1}
   filterstr:=prepare_filter(edit1.text);
   listbox1.Clear; { empty the list of any old values }
   with  listbox1.Items do
-  for i:=0 to cometstring.count-1 do
+  for i:=0 to length(comets)-1 do
   begin
-    regel:=cometstring.strings[i];
-    if pos(';',regel)=0 then
-    begin
-      x:=1;
-      Y:=0;
-      while ((x<=length(regel)) and (regel[x]<>'|')) do
-      begin
-       if regel[x]<>' ' then  begin name9[y]:=regel[x];inc(y);  end;{no spaces}
-       inc(x);
-      end;
-      name9[y]:=ansichar(#0);{set length correct}
-      if  ((length(filterstr)=0) or (pos(filterstr,uppercase(name9))>0)) then  Add(name9);
-    end;
+    name9:=comets[i].name;
+    if  ((length(filterstr)=0) or (pos(filterstr,uppercase(name9))>0)) then  Add(name9);
   end;
   edit1.text:='';{clear filtering}
   ActiveControl:=listbox1;{set focus on listbox1 text window}
@@ -475,6 +454,7 @@ begin
  ActiveControl:=listbox1;{set focus on listbox1 text window}
 end;
 
+
 procedure Tcenter_on.FormActivate(Sender: TObject);
 begin
   store_short[0]:=mainwindow.zenith1.shortcut;{disabled hidden submenu in mainmenu for hot key North, S, E, W for case only single letters are used such as N}
@@ -488,7 +468,7 @@ begin
   mainwindow.east1.shortcut:=0;
   mainwindow.west1.shortcut:=0;
 
-  listbox1.hint:=edit1.hint; {copy de non-english hint};
+//  listbox1.hint:=edit1.hint; {copy de non-english hint};
   ActiveControl:=edit1;{set focus on listbox1 text window}
 end;
 
@@ -594,7 +574,7 @@ var
 
   listbox1.Clear; { empty the list of any old values }
   mag2:=0; {is compared with deep for maximum magnitude, should be set low before starting}
-  linepos :=2;
+  counter :=2;
   mode:=5;
 //  deepnr:=99999999;
   if sender=deepsky1 then maxlinepos:=position_deep2 {search until begin second section}
@@ -607,7 +587,7 @@ var
     if ((length(filterstr)=0) or (pos(filterstr,uppercase(naam2))>0)) then  listbox1.Items.Add(naam2);
     if ((length(naam3)>0)  and (((length(filterstr)=0) or (pos(filterstr,uppercase(naam3))>0)))) then listbox1.Items.Add(naam3);
     if ((length(naam4)>0)  and (((length(filterstr)=0) or (pos(filterstr,uppercase(naam4))>0)))) then listbox1.Items.Add(naam4);
-  until ((mode>5) or (linepos>=maxlinepos));
+  until ((mode>5) or (counter>=maxlinepos));
   edit1.text:='';{clear filtering}
   ActiveControl:=listbox1;{set focus on listbox1 text window}
   Screen.Cursor := oldCursor;
@@ -619,6 +599,7 @@ begin
   position:=podesigned;{otherwise positioning doesn't work in FPC}
   center_on.top:=searchmenutop;
   center_on.left:=searchmenuleft;
+  listbox1.height:=center_on.height-listbox1.top-2;//fix for all DPI settings
 end;
 
 procedure Tcenter_on.FormDeactivate(Sender: TObject);

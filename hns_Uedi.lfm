@@ -711,18 +711,6 @@ object edit2: Tedit2
     object Tools1: TMenuItem
       Caption = 'Tools'
       Hint = ' '
-      object Numericalintegration1: TMenuItem
-        Caption = 'Numerical integration to current epoch'
-        Enabled = False
-        Hint = 'Numerical integration of perturbated orbits to current epoch. Select lines to be integrated.'
-        OnClick = Numericalintegration1Click
-      end
-      object Updatefrominternet1: TMenuItem
-        Caption = 'Update from internet'
-        Enabled = False
-        Hint = 'Update this file from internet.'
-        OnClick = Updatefrominternet1Click
-      end
       object MenuItem1: TMenuItem
         Caption = '-'
       end
@@ -822,12 +810,6 @@ object edit2: Tedit2
     end
     object N3: TMenuItem
       Caption = '-'
-    end
-    object Numericalintegration2: TMenuItem
-      Caption = 'Numerical integration'
-      Enabled = False
-      Hint = 'Numerical integration of perturbated orbits to current epoch. Select lines to be integrated.'
-      OnClick = Numericalintegration1Click
     end
   end
   object ImageList_edit: TImageList

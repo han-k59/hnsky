@@ -438,7 +438,7 @@ end;
 
 function extract_level_2(vector, s:string;start1:integer; out name1,label1,status1 : string):integer;{extract  <defSwitch name="DOME_CW" label="Open"> Off </defSwitch>  <defSwitch name="DOME_CCW" label="Close"> Off  </defSwitch> switches }
 var
-  i,j,k,l,end1,length_vector,end_intermediate : integer;
+  i,j,k,end1,length_vector,end_intermediate : integer;
 begin
   result:=0;
   start1:=posex('<'+vector+' ',s,start1);{defSwitch or oneSwitch with space to deviate from devSwitchVector}
@@ -594,7 +594,7 @@ procedure update_indi_menu(s:string);
 var
   start0,end0,start1,tel,error1,mode                                                                  : integer;
   s2,device1,device_short,name1,name2,label1,status1,component_name,state1,label_main,group1,perm1,
-  time1,message1,rule1,test  : string;
+  time1,message1,rule1         : string;
   x :  double;
 begin
   if indi_client_connected=false then exit; //stop messages and runtime errors if indi_client is in shutdown process

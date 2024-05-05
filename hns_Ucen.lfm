@@ -43,10 +43,7 @@ object center_on: Tcenter_on
     Hint = 'Go to the selected object or apply the wildcard to the combobox list.'
     Top = 295
     Width = 72
-    Anchors = [akLeft, akBottom]
     AutoSize = True
-    BorderSpacing.Bottom = 2
-    BorderSpacing.Around = 2
     Caption = '&Goto'
     Default = True
     Glyph.Data = {
@@ -169,10 +166,7 @@ object center_on: Tcenter_on
     Hint = 'Leave without any action.'
     Top = 295
     Width = 62
-    Anchors = [akLeft, akBottom]
     AutoSize = True
-    BorderSpacing.Bottom = 5
-    BorderSpacing.Around = 2
     Cancel = True
     Caption = '&Cancel'
     OnClick = Cancel1Click
@@ -294,9 +288,10 @@ object center_on: Tcenter_on
   end
   object ListBox1: TListBox
     Left = 0
-    Height = 280
+    Height = 284
     Top = 32
     Width = 172
+    Anchors = [akTop, akLeft, akBottom]
     ItemHeight = 0
     OnClick = ListBox1Click
     OnDblClick = ListBox1DblClick

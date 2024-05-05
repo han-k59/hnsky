@@ -246,7 +246,7 @@ begin
      language_mode:=0; {disable, otherwise everywhere ?}
      exit;
    end;
-   if s<>'42150' then
+   if s<>'43000' then
       application.messagebox(pchar('Your language module is not up to date !!!'+#10+#13+#10+#13+'The language module is in a single *.INI file. Download and replace the language module *.INI manually.'),'update required !',MB_ICONWARNING+MB_OK);
 
   s:=ReadString('system', 'help_path', '?');
@@ -273,10 +273,6 @@ begin
 
   mainwindow.settings1.caption:=(readstring('mainmenu','settingsC','?'));
   mainwindow.settings1.hint:=wrap(ReadString('mainmenu','settingsH','?'));
-  mainwindow.Asteroiddataeditor.caption:=(readstring('mainmenu','asteroideditorC','?'));
-  mainwindow.Asteroiddataeditor.hint:=wrap(ReadString('mainmenu','asteroideditorh','?'));
-  mainwindow.cometdataeditor.caption:=(readstring('mainmenu','cometeditorC','?'));
-  mainwindow.cometdataeditor.hint:=wrap(ReadString('mainmenu','cometeditorh','?'));
   mainwindow.Supplement1editor.caption:=(readstring('mainmenu','supplement1editorC','?'));
   mainwindow.Supplement1editor.hint:=wrap(ReadString('mainmenu','supplement1editorH','?'));
   mainwindow.Supplement2editor.caption:=(readstring('mainmenu','supplement2editorC','?'));
@@ -455,8 +451,6 @@ begin
   mainwindow.load_fits1.shortcut:=TextToShortCut(ReadString('shortcuts','loadfitsS','?'));
 
   mainwindow.settings1.shortcut:=TextToShortCut(ReadString('shortcuts','settingsS','?'));
-  mainwindow.Asteroiddataeditor.shortcut:=TextToShortCut(ReadString('shortcuts','asteroideditorS','?'));
-  mainwindow.cometdataeditor.shortcut:=TextToShortCut(ReadString('shortcuts','cometeditorS','?'));
   mainwindow.Supplement1editor.shortcut:=TextToShortCut(ReadString('shortcuts','supplement1editorS','?'));
   mainwindow.Supplement2editor.shortcut:=TextToShortCut(ReadString('shortcuts','supplement2editorS','?'));
   mainwindow.Supplement3editor.shortcut:=TextToShortCut(ReadString('shortcuts','supplement3editorS','?'));
@@ -1145,7 +1139,7 @@ begin
   settings.searchby1.hint:=wrap(ReadString('settings','searchbyH','?'));
 
   settings.internetsimbad.hint:=wrap(ReadString('settings','internet_simbadH','?'));
-  settings.internetleda.hint:=wrap(ReadString('settings','internet_ledaH','?'));
+  settings.internetleda1.hint:=wrap(ReadString('settings','internet_ledaH','?'));
   settings.internetned.hint:=wrap(ReadString('settings','internet_nedH','?'));
 
   settings.location_tab.caption:=(readstring('settings','location_tabC','?'));{223}
@@ -1156,10 +1150,27 @@ begin
   settings.internetcomet1.hint:=wrap(ReadString('settings','comet_linkH','?'));
 
   settings.up_to_number1.caption:=(readstring('settings','up_to_numberC','?'));
-  settings.up_to_magn1.caption:=(readstring('settings','up_to_magnC','?'));
+//remove   settings.up_to_magn1.caption:=(readstring('settings','up_to_magnC','?'));
 
   settings.max_nr_asteroids1.hint:=(readstring('settings','up_to_numberH','?'));
-  settings.max_magn_asteroids1.hint:=(readstring('settings','up_to_magnH','?'));
+//remove  settings.max_magn_asteroids1.hint:=(readstring('settings','up_to_magnH','?'));
+
+settings.num_integration1.caption:=readstring('settings','num_integrationC','?');
+settings.grp_numerical_integration1.caption:=settings.num_integration1.caption;
+settings.num_integration1.hint:=readstring('settings','num_integrationH','?');
+
+settings.grp_asteroid_database1.caption:=readstring('settings','grp_asteroid_databaseC','?');
+settings.grp_import_export1.caption:=readstring('settings','grp_import_exportC','?');
+
+settings.import_asteroids1.caption:=readstring('settings','import_asteroidC','?');
+settings.import_asteroids1.hint:=readstring('settings','import_asteroidH','?');
+
+settings.export_asteroids1.caption:=readstring('settings','export_asteroidC','?');
+settings.export_asteroids1.hint:=readstring('settings','export_asteroidH','?');
+
+
+
+
 
 
   settings.button_asteroid_update1.caption:=(readstring('settings','asteroidbuttonC','?'));
@@ -1214,10 +1225,6 @@ begin
 
   settings.show_indi_client_button1 .caption:=(readstring('settings','show_indi_client_buttonC','?'));
   settings.show_indi_client_button1 .hint:=wrap(ReadString('settings','show_indi_client_buttonH','?'));
-
-  {remove labels outstanding!!}
-//  indi.show_full_indi_communication1.caption:=(readstring('settings','show_full_indi_communicationC','?'));
-//  indi.show_full_indi_communication1.hint:=wrap(ReadString('settings','show_full_indi_communicationH','?'));
 
   settings.server_tab1.caption:=(readstring('settings','server_tabC','?'));
 
@@ -1318,10 +1325,6 @@ begin
 
 
   edit2.tools1.caption:=(readstring('edit','toolsC','?'));
-  edit2.Numericalintegration1.caption:=(readstring('edit','Numerical_integrationC','?'));
-  edit2.Numericalintegration1.hint:=wrap(ReadString('edit','Numerical_integrationH','?'));
-  edit2.Updatefrominternet1.caption:=(readstring('edit','Update_from_internetC','?'));
-  edit2.Updatefrominternet1.hint:=wrap(ReadString('edit','Update_from_internetH','?'));
   edit2.JPLOrbitalelementsconversion1.caption:=(readstring('edit','Paste_JPL_orbital_elementsC','?'));
   edit2.JPLOrbitalelementsconversion1.hint:=wrap(ReadString('edit','Paste_JPL_orbital_elementsH','?'));
 

@@ -52,7 +52,7 @@ uses
   SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls;
 
-FUNCTION NUMINT_ASTEROID(Year,Month:integer; Day1, SMA, ECC, INC, LOA, AOP, MA, Equinox_old:double; Year_new, Month_new:integer; Day_new, Equinox_new: double): STRING;{calculates new  orbital elements  for  asteroids}
+procedure NUMINT_ASTEROID(Year_new, Month_new:integer; Day_new, Equinox_old,Equinox_new: double;  var Year,Month:integer; var Day1, SMA, ECC, INC, LOA, AOP, MA :double);{calculates new  orbital elements  for  asteroids}
 
 implementation
 //type
@@ -1809,7 +1809,8 @@ FUNCTION DMS2(DD:double):STRING; {Springer}
   END;
 
 
-FUNCTION NUMINT_ASTEROID(Year,Month:integer; Day1, SMA, ECC, INC, LOA, AOP, MA, Equinox_old:double; Year_new, Month_new:integer; Day_new, Equinox_new: double): STRING;{calculates new  orbital elements  for  asteroids}
+
+procedure NUMINT_ASTEROID( Year_new, Month_new:integer; Day_new, Equinox_old,Equinox_new: double;  var Year,Month:integer; var Day1, SMA, ECC, INC, LOA, AOP, MA :double);{calculates new  orbital elements  for  asteroids}
 BEGIN
   Error_message:='';{2013}
   DAY:=TRUNC(Day1); HOUR:=24.0*(Day1-DAY);
@@ -1820,7 +1821,7 @@ BEGIN
 
   T1 :=  (  MJD(trunc(day_new),month_new,year_new,24*frac(day_new) {HOUR}) - 51544.5 ) / 36525.0;{new epoch}
 
-    TEQX := (Equinox_new-2000.0)/100.0;
+  TEQX := (Equinox_new-2000.0)/100.0;
 
 
   (* Calculate precession matrices *)
@@ -1869,9 +1870,12 @@ BEGIN
 //     2 Pallas        |2010 07 23.000|0.231000  |2.772153| 34.8409|173.1295 |310.1509 | 2000| 96.1483  | 4.13| 0.11|   0.00
 //     3 Juno          |2008 11 30.000|0.255933  |2.672153| 12.9680|169.9608 |247.9335 | 2000|256.8166  | 5.33| 0.32|   0.00
 
+   day1:=day+hour/24;
 
-  NUMINT_ASTEROID:=(Error_message+Formatfloat('0000',year)+' '+Formatfloat('00',month)+' '+Formatfloat('00.000',DAY+HOUR/24)+'|'+Formatfloat('0.0000000',ECC)+'|'+Formatfloat('0.0000000',SMA)+'|'+Formatfloat('00.00000',INC)+
-                                       '|'+Formatfloat('000.00000',lOA){ohm}+'|'+Formatfloat('000.00000',aop)+'|'+Formatfloat('0000',Equinox_new)+'|'+Formatfloat('000.00000',ma) );
+
+
+//  NUMINT_ASTEROID:=(Error_message+Formatfloat('0000',year)+' '+Formatfloat('00',month)+' '+Formatfloat('00.000',DAY+HOUR/24)+'|'+Formatfloat('0.0000000',ECC)+'|'+Formatfloat('0.0000000',SMA)+'|'+Formatfloat('00.00000',INC)+
+//                                       '|'+Formatfloat('000.00000',lOA){ohm}+'|'+Formatfloat('000.00000',aop)+'|'+Formatfloat('0000',Equinox_new)+'|'+Formatfloat('000.00000',ma) );
 {testinput according book}
 //  (NUMINT_ASTEROID(1983,09,23.0, {OLD EPOCH}
 //                   2.7657991,    {a}
@@ -1889,5 +1893,7 @@ BEGIN
 
 
 END;
+
+
 
 end.

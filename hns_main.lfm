@@ -1193,18 +1193,6 @@ object mainwindow: Tmainwindow
         object N29: TMenuItem
           Caption = '-'
         end
-        object Asteroiddataeditor: TMenuItem
-          Caption = '&Asteroid data editor'
-          Hint = 'Editor for orbital elements of asteroids.'
-          ShortCut = 16440
-          OnClick = AsteroiddataeditorClick
-        end
-        object cometdataeditor: TMenuItem
-          Caption = '&Comet data editor'
-          Hint = 'Editor for orbital elements of comets.'
-          ShortCut = 16441
-          OnClick = cometdataeditorClick
-        end
         object Supplement1editor: TMenuItem
           Caption = 'Supplement &1 editor'
           Hint = 'Editor for stars and deep sky objects supplement.'

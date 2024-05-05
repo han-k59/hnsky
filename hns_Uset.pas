@@ -1,5 +1,5 @@
 unit hns_Uset;
-{Copyright (C) 1997, 2022 by Han Kleijn, www.hnsky.org
+{Copyright (C) 1997, 2024 by Han Kleijn, www.hnsky.org
  email: han.k.. at...hnsky.org }
 
 {This program is free software: you can redistribute it and/or modify
@@ -27,11 +27,11 @@ uses
  {$ifdef unix}
   lclintf, {for getrvalue}
   LCLType, {for MB_YESNO}
+  math,  // for min() function
  {$endif}
 
   Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  StdCtrls, Buttons, ComCtrls, ExtCtrls, Spin,
-  inifiles;
+  StdCtrls, Buttons, ComCtrls, ExtCtrls, inifiles ;
 
 
 type
@@ -52,11 +52,25 @@ type
     alpaca_adress1: TEdit;
     alpaca_telescope1: TEdit;
     alpaca_groupBox1: TGroupBox;
+    asteroid_epoch1: TLabel;
+    epoch1: TLabel;
+    export_asteroids1: TButton;
+    grp_import_export1: TGroupBox;
+    grp_asteroid_database1: TGroupBox;
+    Label14: TLabel;
+    Label4: TLabel;
+    Label6: TLabel;
+    Label7: TLabel;
+    import_asteroids1: TButton;
+    SaveDialog1: TSaveDialog;
+    grp_numerical_integration1: TGroupBox;
     col42: TLabel;
     col41: TLabel;
     col42_1: TLabel;
     col23: TLabel;
     no_telescope1: TRadioButton;
+    num_integration1: TButton;
+    ProgressBar1: TProgressBar;
     trackingmethod1: TComboBox;
     solartrackingmethod1: TGroupBox;
     internetcomet1: TComboBox;
@@ -64,10 +78,8 @@ type
     selectpath3: TBitBtn;
     selectpath4: TBitBtn;
     up_to_number1: TLabel;
-    up_to_magn1: TLabel;
     max_nr_asteroids1: TEdit;
     internetasteroid1: TComboBox;
-    max_magn_asteroids1: TEdit;
     selectpath1: TBitBtn;
     documentspath1: TLabel;
     grs_offset3: TLabel;
@@ -75,7 +87,7 @@ type
     alpaca_port_number1: TLabel;
     alpaca_telescope2: TLabel;
     interneteso: TEdit;
-    internetLeda: TEdit;
+    internetLeda1: TEdit;
     internetmast: TEdit;
     internetNed: TEdit;
     internetsimbad: TEdit;
@@ -90,11 +102,9 @@ type
     DE431_file_select1: TBitBtn;
     SpeedButton1: TSpeedButton;
     grs_offset2: TEdit;
-    UpDown1: TUpDown;
     UpDown2: TUpDown;
     PageControl1: TPageControl;
     applybutton1: TBitBtn;
-    asteroidfiledate1: TLabel;
     Azimuth_degrees1: TCheckBox;
     Bevel1: TBevel;
     bright_limit: TUpDown;
@@ -288,6 +298,9 @@ type
 
     procedure alpaca_radiobutton1Change(Sender: TObject);
     procedure Ascom_radiobutton1Click(Sender: TObject);
+    procedure import_asteroids1Click(Sender: TObject);
+    procedure export_asteroids1Click(Sender: TObject);
+    procedure num_integration1Click(Sender: TObject);
     procedure DE430_on1Change(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: char);
     procedure no_telescope1Change(Sender: TObject);
@@ -345,6 +358,7 @@ type
     { Public declarations }
   end;
 
+
 var
   Settings: TSettings;
   sure_string : string='Are you sure ?';
@@ -363,17 +377,14 @@ const
 
       internet_asteroid : string='https://minorplanetcenter.net/iau/MPCORB/MPCORB.DAT';
       asteroids_maxnr: string='1000';
-      asteroids_maxmagn: string='14';
 
-      internet_comet :string='https://www.minorplanetcenter.net/iau/Ephemerides/Comets/Soft06Cmt.txt';
+      internet_comet :string='https://minorplanetcenter.net/iau/MPCORB/CometEls.txt';
       internet_simbad :string='http://simbad.u-strasbg.fr/simbad/sim-sam?submit=submit+query&maxObject=1000&Criteria=(Vmag<15+|+Bmag<15+)';
-      internet_leda :  string='http://leda.univ-lyon1.fr/fG.cgi?n=a000&c=o&ob=ra&sql=bt<18';
+      internet_leda :  string='http://atlas.obs-hp.fr/hyperleda/fG.cgi?n=a000&c=o&ob=ra&sql=bt<18';
       internet_ned : string='http://ned.ipac.caltech.edu/cgi-bin/nph-objsearch?search_type=Near+Position+Search&img_stamp=YES&radius=';
       internet_link:integer=1;
       language_module: string='';{hns_uk.ini}
 
-function convert_mpcorb_diskfile(filen :string): boolean;
-function convert_mpc_comet_diskfile(filen :string) : boolean;
 
 implementation
 {$IFDEF fpc}
@@ -382,7 +393,7 @@ implementation
   {$R *.lfm}
 {$ENDIF}
 
-uses hns_main, hns_unon, hns_Utim, hns_Ucen, hns_uast, hns_uDE, hns_Uedi
+uses hns_main, hns_unon, hns_Utim, hns_Ucen, hns_uast, hns_uDE, hns_Uedi, hns_Unumint
     {$IFDEF fpc}
      ,hns_indi, hns_alpaca
      {$ELSE} {delphi}
@@ -391,7 +402,7 @@ uses hns_main, hns_unon, hns_Utim, hns_Ucen, hns_uast, hns_uDE, hns_Uedi
 
 var
    north3,south3,west3,east3  : string;
-
+   numerical_int_running : boolean=false;
 
 
 procedure TSettings.connect_server_Button1Click(Sender: TObject);
@@ -501,6 +512,199 @@ begin
 end;
 
 
+
+procedure TSettings.export_asteroids1Click(Sender: TObject);
+var
+   f :text;
+   i  : integer;
+   line : string;
+const
+   mpc : string[31]='123456789ABCDEFGHIJKLMNOPQRSTUV';
+
+begin
+//  Des'n     H     G   Epoch     M        Peri.      Node       Incl.       e            n           a        Reference #Obs #Opp    Arc    rms  Perts   Computer
+//
+//  ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+//  00001    3.34  0.15 K243V 102.95074   73.36090   80.25352   10.58760  0.0790273  0.21412733   2.7670775  0 E2024-C06  7335 124 1801-2023 0.65 M-v 30k MPCLINUX   0000      (1) Ceres              20230618
+//  00002    4.12  0.15 K243V  83.32723  310.88725  172.91472   34.92284  0.2303399  0.21373952   2.7704235  0 E2024-DC2  8902 123 1804-2024 0.59 M-c 28k MPCLINUX   0000      (2) Pallas             20240223
+//  00003    5.17  0.15 K243V  82.18651  247.77596  169.84069   12.98975  0.2561868  0.22595087   2.6696851  0 E2024-D99  7520 117 1804-2024 0.63 M-v 3Ek MPCLINUX   0000      (3) Juno               20240221
+//  00004    3.25  0.15 K243V 223.65556  151.69316  103.70488    7.14391  0.0898971  0.27168892   2.3609571  0 E2024-DA5  7607 111 1821-2024 0.63 M-p 18k MPCLINUX   0000      (4) Vesta              20240221
+
+
+  savedialog1.filename:='MPCORB, epoch '+Formatfloat('0000',year2)+'-'+Formatfloat('00',month2)+'-'+Formatfloat('00',day2);
+//  savedialog1.initialdir:=documents_path;
+  savedialog1.Filter := '*.dat files (*.dat)|*.dat';
+  if savedialog1.execute then
+  begin
+    system.assign(f,savedialog1.filename);
+    rewrite(f);//use a simple bassic text routine
+    for i:=0 to length(asteroids)-1 do
+    begin
+      line:=format('%-7s',[asteroids[i].desn]);
+      line:=line+format(' %5.2f',[asteroids[i].H]);
+      line:=line+format(' %5.2f',[asteroids[i].G]);
+      if frac(asteroids[i].dd)<>0 then
+                     begin beep;exit;end;//fractions can not be stored in MPCORB.dat. Will give invalid results
+      line:=line+' '+char(55+(asteroids[i].yy div 100))+copy(inttostr(asteroids[i].yy),3,2)+mpc[asteroids[i].mm]+mpc[round(asteroids[i].dd)];  //epoch. Weird MPC logic. Why two characters for year and one for the century?
+      line:=line+format('%10.5f',[asteroids[i].M_anomaly]);
+      line:=line+format('%11.5f',[asteroids[i].aop]); //Peri
+      line:=line+format('%11.5f',[asteroids[i].ohm]);//Node
+      line:=line+format('%11.5f',[asteroids[i].inc]); //Incl.
+      line:=line+format('%11.7f',[asteroids[i].ecc]); //ecc
+
+      line:=line+'  0.21412733'; //Not used by HNSKY, Mean daily motion (degrees per day) Use Ceres as dummy
+
+      line:=line+format(' %11.7f',[(asteroids[i].sma)]);
+
+      line:=line+'  0 E2024-C06  7335 124 2000-2024 0.65 M-v 30k __HNSKY_   0000 '; // not updated
+      line:=line+format('%-27s',[asteroids[i].name]);
+      line:=line+Formatfloat(' 0000',year2)+Formatfloat('00',month2)+Formatfloat('00',day2);
+      writeln(f,line);
+
+      //  Des'n     H     G   Epoch     M        Peri.      Node       Incl.       e            n           a        Reference #Obs #Opp    Arc    rms  Perts   Computer
+      //
+      //  ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+      //  00001    3.34  0.15 K243V 102.95074   73.36090   80.25352   10.58760  0.0790273  0.21412733   2.7670775  0 E2024-C06  7335 124 1801-2023 0.65 M-v 30k MPCLINUX   0000      (1) Ceres              20230618
+    end;
+    system.close(f);
+  end;
+end;
+
+//save all in a single write operation
+procedure Save_asteroids(const aFileName:String; var aRecords:Tasteroid_array);
+var
+  vFile  : TFileStream;
+  vTotal : cardinal;
+begin
+  vFile := TFileStream.Create(aFilename,fmCreate or fmOpenWrite);
+  try
+    vTotal := SizeOf(Tasteroid) * (High(aRecords)-Low(aRecords));
+    vFile.Size := vTotal;
+    vFile.Seek(0,0);
+    vFile.Write(aRecords[Low(aRecords)], vTotal);
+  finally
+    vFile.Free;
+  end;
+end;
+
+procedure Save_comets(const aFileName:String; var aRecords:Tcomet_array);
+var
+  vFile  : TFileStream;
+  vTotal : cardinal;
+begin
+  vFile := TFileStream.Create(aFilename,fmCreate or fmOpenWrite);
+  try
+    vTotal := SizeOf(Tcomet) * (High(aRecords)-Low(aRecords));
+    vFile.Size := vTotal;
+    vFile.Seek(0,0);
+    vFile.Write(aRecords[Low(aRecords)], vTotal);
+  finally
+    vFile.Free;
+  end;
+end;
+
+
+procedure TSettings.num_integration1Click(Sender: TObject);
+var i,nrasteroids           :integer;
+begin
+  if (IDNO= Application.MessageBox(pchar('Only required if you want to have accurate values for the past or future. Numerical integration of the asteroid database to a new epoch is CPU intensive and could take a lot of time!'+#10+
+                                   'You can stop by the cancel button.'+#10+#10+
+                                   'From epoch '+Formatfloat('0000',asteroids[0].yy)+'-'+Formatfloat('00',asteroids[0].mm)+' '+Formatfloat('00',asteroids[0].dd)+'to '+Formatfloat('0000',year2)+'-'+Formatfloat('00',month2)+'-'+Formatfloat('00',DAY2)+#10+
+                                   'Duration estimate '+formatfloat('######0.0',length(asteroids)*abs((asteroids[0].yy+asteroids[0].dd/12)-(year2+month2/12))/2000000)+ ' hour'+#10+
+
+                                   'Continue ?'),
+                                   'Numerical integration', MB_ICONQUESTION + MB_YESNO)) then exit;
+
+  settings.update_TAB.cursor:=crHourglass;//settings.cursor doesn't work
+  Application.ProcessMessages;
+
+  ProgressBar1.position:=0; //prevent runtime error if routine is called from editor
+
+
+  {  Tasteroid =  record
+                   desn    : string[7]; //fixed size for disk storage
+                   name    : string[28];//fixed size for disk storage
+                   yy,mm   : integer;//year month
+                   dd, //day
+                   e,  / ecc
+                   a,
+                   i,
+                   ohm,
+                   w,
+                   M_anomaly,
+                   H,
+                   G : double
+                 end;}
+
+
+  numerical_int_running:=true;
+  nrasteroids:=length(asteroids)-1;
+  for i:=0 to nrasteroids do
+  begin
+    //  (NUMINT_ASTEROID(1983,09,23.0, {OLD EPOCH}
+    //                   old                   new not so accurate. HNSKY is better using accurate planet positions
+    //                   2.7657991,    {a}     2.7674385
+    //                   0.0785650,    {e}     0.0765551
+    //                  10.60646,      {i}     10.59999
+    //                  80.05225,      {ohm}   80.67649
+    //                  73.07274,      {w}     71.11469
+    //                 174.19016,      {anomoly} 141.46349
+    //                 1950.0,         {old equinox}  2000
+    //                 1992,           {new epoch}
+    //                 06,
+    //                 27.000,
+
+
+{   asteroids[i].yy:=1992;
+    asteroids[i].mm:=06;
+    asteroids[i].dd:=27;
+    asteroids[i].a:=2.7657991;
+    asteroids[i].e:=0.0785650;
+    asteroids[i].i:=10.60646;
+    asteroids[i].ohm:=80.05225;
+    asteroids[i].w:=73.07274;
+    asteroids[i].m_anomaly:=174.19016;
+
+    asteroids[i].yy:=1983;
+    asteroids[i].mm:=09;
+    asteroids[i].dd:=23.000;
+    oldeqn:=1950;
+    year2:=1992;
+    month2:=06;
+    day2:=27;
+    hour2:=0;}
+
+
+
+    {calculates new  orbital elements  for  asteroids}
+    NUMINT_ASTEROID(year2, month2, day2 {new epoch tonight, strictly local time but that doesn't matter since data is a few months good. Do not use hours since it is NOT stored in MPCORB.DAT}
+       ,2000 {old eqn}, 2000 {new eqn},
+       {var} asteroids[i].yy, asteroids[i].mm,asteroids[i].dd, asteroids[i].sma, asteroids[i].ecc,asteroids[i].inc,asteroids[i].ohm, asteroids[i].aop, asteroids[i].m_anomaly);
+
+    if frac(i/100)=0 then
+    begin
+      settings.ProgressBar1.position:=round(100*i/nrasteroids);
+      application.processmessages;
+      if numerical_int_running=false then  //stopped by cancel button
+      begin
+         loadasteroid;//restore database
+         settings.update_TAB.cursor:=crdefault;
+         exit;//stopped by cancel button
+      end;
+    end;
+
+  end;
+  settings.ProgressBar1.position:=0;
+
+  asteroidfile_age:=formatfloat('0000',asteroids[0].yy)+'-'+formatfloat('00',asteroids[0].mm)+ '-'+formatfloat('00',asteroids[0].dd);
+  settings.asteroid_epoch1.caption:= asteroidfile_age;
+ // invalidaterect(settings.handle,nil,true);  {refresh to show new dates}
+
+  save_asteroids(documents_path+'hns_ast.ast', asteroids);
+  settings.update_TAB.cursor:=crdefault;
+end;
+
+
 procedure check_de430_files(activated : boolean);
 begin
   if ((activated=false) or (FileExists(de430_file))) then settings.DE430_file1.color:=cldefault else settings.DE430_file1.color:=clred;
@@ -550,9 +754,8 @@ begin
   end;
 end;
 
+
 procedure TSettings.screenupdate1Changing(Sender: TObject;  var AllowChange: Boolean);
-var
-   minv : integer;
 begin
   if screenupdate1.position<=30 then screenupdate1.increment:=5
   else
@@ -593,6 +796,7 @@ end;
 procedure TSettings.OKClick(Sender: TObject);
 var  err      :integer;
 begin
+  numerical_int_running:=false;//stop any numerical integration
   err:=0;
   begin
     val_local(latitude2.text,reallatitude,err);
@@ -664,11 +868,10 @@ begin
 
           internet_asteroid:=internetasteroid1.text;
           asteroids_maxnr:=max_nr_asteroids1.text;
-          asteroids_maxmagn:=max_magn_asteroids1.text;
 
           internet_comet:=internetcomet1.text;
           internet_simbad:=internetsimbad.text;
-          internet_leda:=internetleda.text;
+          internet_leda:=internetLeda1.text;
           internet_ned:=internetned.text;
           timestep:=screenupdate1.position;
         end;
@@ -759,6 +962,7 @@ end;
 procedure TSettings.CancelClick(Sender: TObject);
 begin
   {!! important set borderstyle of form at bsdialog. Then background is recovered by windows !!!}
+  numerical_int_running:=false;//stop any numerical integration
   settings.close;
   mainwindow.setfocus;
 end;
@@ -1101,7 +1305,7 @@ begin
   internetmast.text:=internet_mast;
 
   internetsimbad.text:=internet_simbad;
-  internetleda.text:=internet_leda;
+  internetLeda1.text:=internet_leda;
   internetned.text:=internet_ned;
   vizier_server1.text:=vizier_server;{online star database}
 
@@ -1111,12 +1315,11 @@ begin
 
   internetasteroid1.text:=internet_asteroid;
   max_nr_asteroids1.text:=asteroids_maxnr;
-  max_magn_asteroids1.text:=asteroids_maxmagn;
 
   internetcomet1.text:=internet_comet;
 
   settings.cometfiledate1.caption:=cometfile_age;{show date of cometfile}
-  settings.asteroidfiledate1.caption:=asteroidfile_age;{show date of cometfile}
+  settings.asteroid_epoch1.caption:=asteroidfile_age;{show date of cometfile}
 
   mousewheelreverse1.checked:=(mouse_wheel_reverse<>0);
   mooncoversstars1.checked:=(moon_covers_stars<>0);
@@ -1573,6 +1776,76 @@ begin
 
 end;
 
+
+function convert_comet_els(filename: string) : boolean;
+var
+  oldCursor : TCursor;
+  code2,line,error2,counter    : integer;
+  txt                  : string;
+  s                    : TStringList;
+  value,g              : double;
+begin
+//  oldCursor := Screen.Cursor;
+//  Screen.Cursor := crHourglass;
+
+  s := TStringList.Create;
+  s.LoadFromFile(Filename);
+  line:=0;
+  counter:=0;
+
+  setlength(comets,s.count);
+
+  while line<s.count do
+  begin
+    //    CJ95O010  1997 03 30.7194  0.890521  0.994981  130.2213  282.3030   89.4662  20240304  -2.0  4.0  C/1995 O1 (Hale-Bopp)                                    MPEC 2022-S20
+    txt:=S.Strings[line];
+
+    if length(txt)>168 then
+    begin
+      val(copy(txt,15,4),comets[counter].yy,error2);//epoch year.
+      if ((error2=0) and (comets[counter].yy>1900) and (comets[counter].yy<2200)) then {do only data and modern comets}
+      begin
+        comets[counter].mm:=strtoint(copy(txt,20,2));{epoch month}
+        comets[counter].dd:=strtofloat(copy(txt,23,7));{epoch day}
+
+        comets[counter].q:=strtofloat(copy(txt,31,9)); // Perihelion distance (AU)
+        comets[counter].ecc:=strtofloat(copy(txt,41,9));// Orbital eccentricity
+        comets[counter].aop:=strtofloat(copy(txt,51,9));// Argument of perihelion, J2000.0 (degrees)
+        comets[counter].lan:=strtofloat(copy(txt,61,9));// Longitude of the ascending node, J2000.0 (degrees)
+        comets[counter].inc:=strtofloat(copy(txt,71,9));// Onclination in degrees, J2000.0 (degrees)
+
+        comets[counter].h:=strtofloat(copy(txt,91,5));  // Absolute magnitude, H
+        comets[counter].g:=strtofloat(copy(txt,97,4));  // slope
+
+        comets[counter].name:=copy(stringreplace(copy(txt,103,56),' ','',[rfreplaceall]),1,28);//max length 28
+        comets[counter].reference:=stringreplace(copy(txt,160,9 ),' ','',[rfreplaceall]);//max length 9
+
+        comets[counter].calc_magn:=0;// special, magnitude calculated within 0.25 day of the current time  for speed
+        comets[counter].calc_jd:=0;  // julian day when cal_magn was calculated
+
+
+        {Hale Bopp
+          Q:= 0.890521; Perihelion distance q in AU;
+          ECC:= 0.99492999999999998; Eccentricity e
+          INC:= 88.987200000000001; Inclination i
+          LAN:= 283.36720000000003;  Longitude of the ascending node
+          AOP:= 130.62989999999999;  Argument of perihelion}
+        inc(counter)
+      end;//valid data
+    end;//length >168
+    inc(line);
+  end;
+  S.Free;
+  setlength( comets,counter);
+
+  save_comets(documents_path+'hns_cmt.cmt', comets);
+
+//  Screen.Cursor := oldCursor;
+  result:=counter>100;
+end;
+
+
+
 procedure TSettings.button_comet_update1Click(Sender: TObject);  {2013 update comet  database}
 var
   success : boolean;
@@ -1586,23 +1859,12 @@ begin
   begin
     if  DownloadFile(internetcomet1.text,documents_path+'CometEls.txt') then
     begin
-      success:=convert_mpc_comet_diskfile(documents_path+'CometEls.txt');{data is also loaded in cometstring}
-      if success then cometfile_age:=DateTimeToStr(FileDateToDateTime(FileAge(documents_path+'hns_com1.cmt')))
-        else  asteroidfile_age:='CometEls.txt conversion problem';
+      success:=convert_comet_els(documents_path+'CometEls.txt');{data is also loaded in cometstring}
+      if success then cometfile_age:=DateTimeToStr(FileDateToDateTime(FileAge(documents_path+'hns_cmt.cmt')))
+        else  cometfile_age:='CometEls.txt conversion problem';
      end
-  end
-  else
-  begin {standard Soft06Cmt file}
-    if DownloadFile(internetcomet1.text,documents_path+'hns_com1.cmt') then
-    begin
-      loadcomet;
-      success:=true;
-    end
-    else
-    begin
-      success:=false;
-    end;
   end;
+
 
   if success=false then
   begin
@@ -1617,112 +1879,150 @@ begin
   invalidaterect(settings.handle,nil,true);  {refresh to show new dates}
 end;
 
+
+
+
+
+//A brief header is given below:
+//Des'n     H     G   Epoch     M        Peri.      Node       Incl.       e            n           a        Reference #Obs #Opp    Arc    rms  Perts   Computer
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------
+//00001    3.4   0.15 K205V 162.68631   73.73161   80.28698   10.58862  0.0775571  0.21406009   2.7676569  0 MPO492748  6751 115 1801-2019 0.60 M-v 30h Williams   0000      (1) Ceres              20190915
+//00002    4.2   0.15 K205V 144.97567  310.20237  173.02474   34.83293  0.2299723  0.21334458   2.7738415  0 MPO492748  8027 109 1821-2019 0.58 M-v 28h Williams   0000      (2) Pallas             20190812
+//00003    5.2   0.15 K205V 125.43538  248.06618  169.85147   12.99105  0.2569364  0.22612870   2.6682853  0 MPO525910  7020 106 1821-2020 0.59 M-v 38h Williams   0000      (3) Juno               20200109
+//00004    3.0   0.15 K205V 204.32771  150.87483  103.80908    7.14190  0.0885158  0.27150657   2.3620141  0 MPO525910  6941 102 1821-2019 0.60 M-p 18h Williams   0000      (4) Vesta              20191229
+//00005    6.9   0.15 K205V  17.84635  358.64840  141.57102    5.36742  0.1909134  0.23866119   2.5740373  0 MPO525910  2784  77 1845-2020 0.53 M-v 38h Williams   0000      (5) Astraea            20200105
+//00006    5.7   0.15 K205V 190.68653  239.73624  138.64343   14.73966  0.2032188  0.26107303   2.4245327  0 MPO525910  5745  90 1848-2020 0.53 M-v 38h Williams   0007      (6) Hebe               20200110
+
+function convert_MPCORB(filename: string; nrlines: integer) : boolean;
+var
+  code2,line, counter,error2   : integer;
+  txt                  : string;
+  centuryA             : string[2];
+  S                    : TStringList;
+  value                : double;
+begin
+  S := TStringList.Create;
+  S.LoadFromFile(Filename);
+  line:=0;
+  counter:=0;
+
+  nrlines:=min(nrlines,S.count);
+  setlength(asteroids,nrlines);
+
+  while line<nrlines do
+  begin
+
+    txt:=S.Strings[line];
+
+    if length(txt)>190 then
+    begin
+      //  Epoch (in packed form, .0 TT), see http://www.minorplanetcenter.net/iau/info/MPOrbitFormat.html}
+      //   1996 Jan. 1    = J9611
+      //   1996 Jan. 10   = J961A
+      //   1996 Sept.30   = J969U
+      //   1996 Oct. 1    = J96A1
+      //   2001 Oct. 22   = K01AM
+
+     str(Ord(txt[21])-55:2,centuryA); // 'A'=65
+
+     {  Tasteroids : record
+                      designation : string;
+                      epoch,
+                      e,
+                      a,
+                      i,
+                      ohm,
+                      w,
+                      M_anomaly,
+                      H,
+                      G,
+                      calc_magn : double
+                    end;   }
+
+      if ((centuryA='19') or (centuryA='20') or (centuryA='21')) then {do only data}
+      begin
+        asteroids[counter].desn:=trimRight(copy(txt,1,7)); //7
+
+        val(copy(txt,8,12-8+1),value,error2);{ 8 -  12  f5.2   Absolute magnitude, H}
+        if error2=0 then  asteroids[counter].H:=value else asteroids[counter].H:=23;//no data
+
+        val(copy(txt,14,19-14+1),value,error2);{14 -  19  f5.2   Slope parameter, G}
+        if error2=0 then  asteroids[counter].G:=value else asteroids[counter].G:=0.15;//no data
+
+        asteroids[counter].yy:=strtoint(centuryA+txt[22]+txt[23]);{epoch year}
+
+        code2:=Ord(txt[24]);
+        if code2<65 then asteroids[counter].mm:=code2-48 {1..9} else asteroids[counter].mm:=code2-55; {A..Z}
+
+        code2:=Ord(txt[25]);
+        if code2<65 then asteroids[counter].dd:=code2-48 {1..9} else asteroids[counter].dd:=code2-55; {A..Z}
+
+        asteroids[counter].M_anomaly:=strtofloat(copy(txt,27,35-27+1));   {27 -  35  f9.5   Mean anomaly at the epoch, in degrees}
+        asteroids[counter].aop:=strtofloat(copy(txt,38,46-38+1));   {38 -  46  f9.5   Argument of perihelion, J2000.0 (degrees)}
+        asteroids[counter].ohm:=strtofloat(copy(txt,49,57-49+1)); {49 -  57  f9.5   Longitude of the ascending node, J2000.0  (degrees)}
+        asteroids[counter].inc:=strtofloat(copy(txt,60,68-60+1));   {60 -  68  f9.5   Inclination to the ecliptic, J2000.0 (degrees)}
+
+        asteroids[counter].ecc:=strtofloat(copy(txt,71,79-71+1));   {71 -  79  f9.7   Orbital eccentricity}
+        asteroids[counter].sma:=strtofloat(copy(txt,93,103-93+1));  {93 - 103  f11.7  Semimajor axis (AU)}
+
+        asteroids[counter].name:=stringreplace(copy(txt,167,194-167+1),' ','',[rfreplaceall]);//max length 28
+
+        asteroids[counter].calc_magn:=0;// special, magnitude calculated within 0.25 day of the current time  for speed
+        asteroids[counter].calc_jd:=0;  // julian day when cal_magn was calculated
+        inc(counter)
+      end;//valid data
+    end;//length >190
+    //if  frac(counter/1000)=0 then edit2.caption:=Formatfloat('0', counter)+' asteroids';{show position but not to often otherwise slowdown}
+    inc(line);
+  end;
+  S.Free;
+  setlength( asteroids,counter);
+
+  save_asteroids(documents_path+'hns_ast.ast', asteroids);
+  result:=counter>100;
+end;
+
+
+
+
 function convert_mpcorb_diskfile(filen :string) : boolean;
 var
-   File1 : TextFile;
-   i,error2,max_nr_asteroids    : integer;
-   txt   : string;
-   max_magn_asteroids  : double;
+  max_nr_asteroids,error2    : integer;
 begin
+  settings.update_TAB.cursor:=crHourglass;//settings.cursor doesn't work
+
   val(asteroids_maxnr,max_nr_asteroids,error2);;
-  val(asteroids_maxmagn,max_magn_asteroids,error2);;
 
-  result:=true;
-  try
-    AssignFile(file1,filen);
-    Reset(file1);
+  result:=convert_MPCORB(filen, max_nr_asteroids+44 {44 lines of text will be ignored});
 
-    asteroidstring.clear;  {tstrings}
-    asteroidstring.text:='';{clearbuffer}
-    asteroidstring.add('; Extracted from: MINOR PLANET CENTER ORBIT DATABASE (MPCORB.dat)');
-    asteroidstring.add(';');
-    asteroidstring.add('; Readable designation       yyyymmdd.ddd    e         a [ae]       i        ohm        w   Equinox M-anomaly  H     G');
-    asteroidstring.add(';--------------------------------------------------------------------------------------------------------------------------');
+  if result then
+     asteroidfile_age:=formatfloat('0000',asteroids[0].yy)+'-'+formatfloat('00',asteroids[0].mm)+ '-'+formatfloat('00',asteroids[0].dd)
+  else
+     asteroidfile_age:='MPCORB.DAT conversion problem';
 
-    i:=0;
+  settings.nr_asteroids_extracted1.text:='↓ '+ inttostr(length(asteroids)-1);
 
-    while ((not Eof(file1)) and (i<max_nr_asteroids+44)) do
-    begin
-      ReadLn(file1, txt);
-      txt:=convert_MPCORB_line(txt);{convert from MPCORB to THESKY format}
-      asteroidstring.add(txt);
-      linepos:=asteroidstring.count-1;
-      update_mag:=true; {required since it will be set to false}
-      read_asteroid('T');
-      if (mag<=max_magn_asteroids)=false then
-        asteroidstring.delete(linepos-1);
-      inc(i);
-    end;
-  except
-    result:=false;
-  end;
-
-  if assigned(settings){form created} then settings.nr_asteroids_extracted1.text:='↓ '+ inttostr(linepos-5);
-
-  update_mag:=false;{not required}
-  CloseFile(file1);
-  asteroidstring.savetofile(documents_path+'hns_ast1.ast');
-  deletefile(filen);
+  settings.update_TAB.cursor:=crDefault;
 end;
-function convert_mpc_comet_diskfile(filen :string) : boolean;
+
+
+procedure TSettings.import_asteroids1Click(Sender: TObject);
 var
-   File1      : TextFile;
-   i,error1   : integer;
-   g : double;
-   txt,kstr   : string;
+   success: boolean;
 begin
-  result:=true;
-  try
-    AssignFile(file1,filen);{CometEls.txt}
-    Reset(file1);
 
-    cometstring.clear;  {tstrings}
-    cometstring.text:='';{clearbuffer}
-    cometstring.add(';Updated and saved. Source CometEls.txt');
-    cometstring.add(';                                       Equinox    Peri-   Peri-     Eccen-    Argument   Longitude Orbit     Abs. Actv.  Second');
-    cometstring.add(';                                       of         helion  helion    tricity   of         of the    incli     magn.        name');
-    cometstring.add(';                                       orbital    epoch   distance            perihelion ascending nation');
-    cometstring.add(';                                       elements                                          node');
-    cometstring.add(';');
-    cometstring.add(';                                      [yyyy]yyyymmdd.dddd  q [ae]      e        w         ohm          i     H0    k');
-    cometstring.add(';--------------------------------------+----+-------------+---------+---------+---------+---------+---------+-----+-----+----------');
-    i:=0;
-
-    while not Eof(file1) do
-    begin
-      ReadLn(file1, txt);
-
-      val(copy(txt,97,4),g,error1);
-      str(g*2.5 :5:1,kstr);{G to activity k}
-{
-    CJ95O010  1997 03 29.6427  0.915443  0.994929  130.6372  283.3632   88.9890  20200322  -2.0  4.0  C/1995 O1 (Hale-Bopp)                                    MPC106342
-}
-
-      txt:=copy(txt,103,39)+ {name}
-           '|2000|'+
-           copy(txt,15,4)+ {year}
-           copy(txt,20,2)+ {month}
-           copy(txt,23,7)+ {day}
-       '|'+copy(txt,31,9)+     {q}
-       '|'+copy(txt,41,9)+     {e}
-       '|'+copy(txt,51,9)+     {w}
-       '|'+copy(txt,61,9)+     {ohm}
-       '|'+copy(txt,71,9)+     {i}
-       '|'+copy(txt,91,5)+     {H0}
-       '|'+kstr+
-       '|'+copy(txt,159,10);    {second name}
-
-      cometstring.add(txt);
-      inc(i);
-    end;
-  except
-    result:=false;
+  OpenDialog1.title:='Select an MPCORB.dat file';
+  OpenDialog1.Filename:='*.dat';
+  OpenDialog1.initialdir:=documents_path;
+  opendialog1.Filter := 'MPCORB, NEA(*.DAT*;*.txt)|*.dat;*.DAT;*.txt';
+  if OpenDialog1.execute then
+  begin
+    settings.update_TAB.cursor:=crHourglass;//settings.cursor doesn't work
+    success:=convert_mpcorb_diskfile(OpenDialog1.Filename);
+    settings.update_TAB.cursor:=crDefault;//settings.cursor doesn't work
   end;
-
-  CloseFile(file1);
-  cometstring.savetofile(documents_path+'hns_com1.cmt');
-  deletefile(filen);{CometEls.txt}
 end;
+
 
 procedure TSettings.button_asteroid_update1Click(Sender: TObject);
 var
@@ -1737,35 +2037,21 @@ begin
     if DownloadFile(internetasteroid1.text,documents_path+'mpcorb_temp.dat') then
     begin
       asteroids_maxnr:=max_nr_asteroids1.text;{update now}
-      asteroids_maxmagn:=max_magn_asteroids1.text;
 
       success:=convert_mpcorb_diskfile(documents_path+'mpcorb_temp.dat');{data is also loaded}
-      if success then asteroidfile_age:=DateTimeToStr(FileDateToDateTime(FileAge(documents_path+'hns_ast1.ast')))
-      else  asteroidfile_age:='MPCORB.DAT conversion problem';
-    end
-  end
-  else
-  begin {standard file}
-    if DownloadFile(internetasteroid1.text,documents_path+'hns_ast1.ast') then {try this year}
-    begin
-      loadasteroid;
-      success:=true;
-    end
-    else
-    begin
-      success:=false;
+      deletefile(documents_path+'mpcorb_temp.dat');
     end
   end;
 
   if success=false then
   begin
-    settings.asteroidfiledate1.font.color:=clred;
-    settings.asteroidfiledate1.caption:=asteroidfile_age+',   '+error_string;{show date of asteroid file}
+    settings.asteroid_epoch1.font.color:=clred;
+    settings.asteroid_epoch1.caption:=asteroidfile_age+',   '+error_string;{show date of asteroid file}
   end
   else
   begin
-    settings.asteroidfiledate1.font.color:=$008080;
-    settings.asteroidfiledate1.caption:=asteroidfile_age;{show date of asteroid file}
+    settings.asteroid_epoch1.font.color:=$008080;
+    settings.asteroid_epoch1.caption:=asteroidfile_age;{show date of asteroid file}
   end;
 
   invalidaterect(settings.handle,nil,true);  {refresh to show new dates}
